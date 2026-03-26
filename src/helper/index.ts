@@ -1,5 +1,5 @@
-import { useNotification } from '@/composables/notification'
 import { NOT_CONNECTED, PROXY_CHAIN_DIRECTION, PROXY_TYPE, ROUTE_NAME } from '@/constant'
+import { showNotification } from '@/helper/notification'
 import { timeSaved } from '@/store/overview'
 import { hiddenGroupMap, proxyMap } from '@/store/proxies'
 import {
@@ -23,6 +23,10 @@ export const isProxyGroup = (name: string) => {
     return false
   }
 
+  if (proxyNode.all?.length) {
+    return true
+  }
+
   return [
     PROXY_TYPE.Dns,
     PROXY_TYPE.Compatible,
@@ -34,13 +38,19 @@ export const isProxyGroup = (name: string) => {
     PROXY_TYPE.URLTest,
     PROXY_TYPE.LoadBalance,
     PROXY_TYPE.Selector,
+    PROXY_TYPE.Smart,
   ].includes(proxyNode.type.toLowerCase() as PROXY_TYPE)
 }
 
 export const getHostFromConnection = (connection: Connection) => {
-  return `${connection.metadata.host || connection.metadata.sniffHost || connection.metadata.destinationIP}:${
-    connection.metadata.destinationPort
-  }`
+  const port = connection.metadata.destinationPort
+  const host =
+    connection.metadata.host || connection.metadata.sniffHost || connection.metadata.destinationIP
+
+  if (host.includes(':')) {
+    return `[${host}]:${port}`
+  }
+  return `${host}:${port}`
 }
 
 export const getProcessFromConnection = (connection: Connection) => {
@@ -157,6 +167,15 @@ export const applyCustomThemes = () => {
   })
 }
 
+export const applyKsuTheme = () => {
+  if (window.ksu) {
+    const link = document.createElement('link')
+    link.rel = 'stylesheet'
+    link.href = 'https://mui.kernelsu.org/internal/colors.css'
+    document.head.appendChild(link)
+  }
+}
+
 export const isHiddenGroup = (group: string) => {
   if (Reflect.has(hiddenGroupMap.value, group)) {
     return hiddenGroupMap.value[group]
@@ -166,8 +185,6 @@ export const isHiddenGroup = (group: string) => {
 }
 
 export const handlerUpgradeSuccess = () => {
-  const { showNotification } = useNotification()
-
   showNotification({
     content: 'upgradeSuccess',
     type: 'alert-success',

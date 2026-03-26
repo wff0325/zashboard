@@ -1,4 +1,4 @@
-import { disconnectByIdAPI } from '@/api'
+import { blockConnectionByIdAPI, disconnectByIdAPI } from '@/api'
 import { useBounceOnVisible } from '@/composables/bouncein'
 import { useConnections } from '@/composables/connections'
 import {
@@ -25,6 +25,7 @@ import {
   ArrowRightCircleIcon,
   ArrowUpCircleIcon,
   ArrowUpIcon,
+  NoSymbolIcon,
   XMarkIcon,
 } from '@heroicons/vue/24/outline'
 import { first, last } from 'lodash'
@@ -95,26 +96,29 @@ export default defineComponent<{
             )}
           </span>
         ),
+        [CONNECTIONS_TABLE_ACCESSOR_KEY.Outbound]: (
+          <span class="w-60 grow truncate break-all">{conn.chains[0]}</span>
+        ),
         [CONNECTIONS_TABLE_ACCESSOR_KEY.Download]: (
-          <div class="flex items-center gap-1 whitespace-nowrap">
+          <div class="flex items-center gap-1 text-xs whitespace-nowrap">
             {prettyBytesHelper(conn.download)}
-            <ArrowDownIcon class="text-success h-4 w-4" />
+            <ArrowDownIcon class="text-success h-3 w-3" />
           </div>
         ),
         [CONNECTIONS_TABLE_ACCESSOR_KEY.Upload]: (
-          <div class="flex items-center gap-1 whitespace-nowrap">
+          <div class="flex items-center gap-1 text-xs whitespace-nowrap">
             {prettyBytesHelper(conn.upload)}
-            <ArrowUpIcon class="text-info h-4 w-4" />
+            <ArrowUpIcon class="text-info h-3 w-3" />
           </div>
         ),
         [CONNECTIONS_TABLE_ACCESSOR_KEY.DlSpeed]: (
-          <div class="flex items-center gap-1 whitespace-nowrap">
+          <div class="flex items-center gap-1 text-xs whitespace-nowrap">
             {prettyBytesHelper(conn.downloadSpeed)}/s
             <ArrowDownCircleIcon class="text-success h-4 w-4" />
           </div>
         ),
         [CONNECTIONS_TABLE_ACCESSOR_KEY.UlSpeed]: (
-          <div class="flex items-center gap-1 whitespace-nowrap">
+          <div class="flex items-center gap-1 text-xs whitespace-nowrap">
             {prettyBytesHelper(conn.uploadSpeed)}/s
             <ArrowUpCircleIcon class="text-info h-4 w-4" />
           </div>
@@ -128,21 +132,47 @@ export default defineComponent<{
         [CONNECTIONS_TABLE_ACCESSOR_KEY.InboundUser]: (
           <div class="gap-1 whitespace-nowrap">{getInboundUserFromConnection(conn)}</div>
         ),
-        [CONNECTIONS_TABLE_ACCESSOR_KEY.Close]: (
-          <button
-            class="btn btn-circle btn-xs"
-            onClick={(e) => {
-              e.stopPropagation()
-              disconnectByIdAPI(conn.id)
-            }}
-          >
-            <XMarkIcon class="h-4 w-4" />
-          </button>
-        ),
+        [CONNECTIONS_TABLE_ACCESSOR_KEY.Close]: (() => {
+          const closeButton = (
+            <button
+              class="btn btn-circle btn-xs"
+              onClick={(e) => {
+                e.stopPropagation()
+                disconnectByIdAPI(conn.id)
+              }}
+            >
+              <XMarkIcon class="h-4 w-4" />
+            </button>
+          )
+
+          if (metadata.smartBlock === 'normal') {
+            const degradeButton = (
+              <button
+                class="btn btn-circle btn-xs"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  blockConnectionByIdAPI(conn.id)
+                }}
+              >
+                <NoSymbolIcon class="h-4 w-4" />
+              </button>
+            )
+            return (
+              <div class="flex gap-1">
+                {degradeButton}
+                {closeButton}
+              </div>
+            )
+          }
+          return closeButton
+        })(),
       }
       return (
         <div
-          class="card cursor-pointer gap-1 p-1 md:p-2"
+          class={[
+            'card cursor-pointer gap-1',
+            connectionCardLines.value.length > 2 ? 'p-2' : 'p-1',
+          ]}
           onClick={() => handlerInfo(conn)}
         >
           {connectionCardLines.value.map((line) => (

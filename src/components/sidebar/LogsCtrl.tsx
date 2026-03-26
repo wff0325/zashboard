@@ -1,11 +1,25 @@
 import { isSingBox } from '@/api'
+import { useCtrlsBar } from '@/composables/useCtrlsBar'
 import { LOG_LEVEL } from '@/constant'
-import { initLogs, isPaused, logFilter, logLevel, logTypeFilter, logs } from '@/store/logs'
+import { useTooltip } from '@/helper/tooltip'
+import {
+  initLogs,
+  isPaused,
+  logFilter,
+  logFilterEnabled,
+  logFilterRegex,
+  logLevel,
+  logTypeFilter,
+  logs,
+} from '@/store/logs'
 import { logRetentionLimit, logSearchHistory } from '@/store/settings'
 import {
   ArrowDownTrayIcon,
+  LinkIcon,
+  LinkSlashIcon,
   PauseIcon,
   PlayIcon,
+  QuestionMarkCircleIcon,
   WrenchScrewdriverIcon,
   XMarkIcon,
 } from '@heroicons/vue/24/outline'
@@ -17,15 +31,11 @@ import DialogWrapper from '../common/DialogWrapper.vue'
 import TextInput from '../common/TextInput.vue'
 
 export default defineComponent({
-  props: {
-    isLargeCtrlsBar: {
-      type: Boolean,
-      default: true,
-    },
-  },
-  setup(props) {
+  setup() {
     const { t } = useI18n()
     const settingsModel = ref(false)
+    const { isLargeCtrlsBar } = useCtrlsBar()
+    const { showTip, updateTip } = useTooltip()
     const insertLogSearchHistory = debounce((log: string) => {
       if (!log) {
         return
@@ -124,7 +134,7 @@ export default defineComponent({
     return () => {
       const levelSelect = (
         <select
-          class={['join-item select select-sm']}
+          class={['join-item select select-sm min-w-30']}
           v-model={logLevel.value}
           onChange={initLogs}
         >
@@ -155,7 +165,7 @@ export default defineComponent({
         <select
           class={[
             'join-item select select-sm',
-            props.isLargeCtrlsBar ? 'w-36' : 'w-24 max-w-40 flex-1',
+            isLargeCtrlsBar.value ? 'w-36' : 'w-24 max-w-40 flex-1',
           ]}
           v-model={logTypeFilter.value}
         >
@@ -191,7 +201,10 @@ export default defineComponent({
           >
             <WrenchScrewdriverIcon class="h-4 w-4" />
           </button>
-          <DialogWrapper v-model={settingsModel.value}>
+          <DialogWrapper
+            v-model={settingsModel.value}
+            title={t('logSettings')}
+          >
             <div class="flex flex-col gap-4 p-2 text-sm">
               <div class="flex items-center gap-2">
                 {t('logRetentionLimit')}
@@ -202,6 +215,30 @@ export default defineComponent({
                   v-model={logRetentionLimit.value}
                 />
               </div>
+              <div class="flex items-center gap-2">
+                <span class="shrink-0">{t('hideLogRegex')}</span>
+                <TextInput
+                  class="w-32 max-w-64 flex-1"
+                  v-model={logFilterRegex.value}
+                />
+              </div>
+              <div class="flex items-center gap-2">
+                {t('hideLog')}
+                <input
+                  type="checkbox"
+                  class="toggle"
+                  v-model={logFilterEnabled.value}
+                />
+                <div
+                  onMouseenter={(e) =>
+                    showTip(e, t('hideLogTip'), {
+                      appendTo: 'parent',
+                    })
+                  }
+                >
+                  <QuestionMarkCircleIcon class="h-4 w-4" />
+                </div>
+              </div>
             </div>
           </DialogWrapper>
         </>
@@ -209,13 +246,31 @@ export default defineComponent({
 
       const buttons = (
         <div class="flex items-center gap-2">
+          {settingsModal}
           <button
             class="btn btn-circle btn-sm"
             onClick={downloadAllLogs}
           >
             <ArrowDownTrayIcon class="h-4 w-4" />
           </button>
-          {settingsModal}
+          <button
+            class="btn btn-circle btn-sm"
+            onClick={() => {
+              logFilterEnabled.value = !logFilterEnabled.value
+              updateTip(logFilterEnabled.value ? t('showLog') : t('hideLog'))
+            }}
+            onMouseenter={(e) =>
+              showTip(e, logFilterEnabled.value ? t('showLog') : t('hideLog'), {
+                appendTo: 'parent',
+              })
+            }
+          >
+            {logFilterEnabled.value ? (
+              <LinkSlashIcon class="h-4 w-4" />
+            ) : (
+              <LinkIcon class="h-4 w-4" />
+            )}
+          </button>
           <button
             class="btn btn-circle btn-sm"
             onClick={() => (isPaused.value = !isPaused.value)}
@@ -231,21 +286,18 @@ export default defineComponent({
         </div>
       )
 
-      if (!props.isLargeCtrlsBar) {
-        return (
-          <div class="flex flex-col gap-2 p-2">
-            <div class="flex w-full justify-between gap-2">
-              <div class="join flex-1">{levelSelect}</div>
-              {buttons}
-            </div>
-            <div class="join">
-              {logTypeSelect}
-              {searchInput}
-            </div>
+      const content = !isLargeCtrlsBar.value ? (
+        <div class="flex flex-col gap-2 p-2">
+          <div class="flex w-full justify-between gap-2">
+            <div class="join flex-1">{levelSelect}</div>
+            {buttons}
           </div>
-        )
-      }
-      return (
+          <div class="join">
+            {logTypeSelect}
+            {searchInput}
+          </div>
+        </div>
+      ) : (
         <div class="flex items-center justify-between gap-2 p-2">
           <div class="flex items-center gap-2">
             {levelSelect}
@@ -257,6 +309,8 @@ export default defineComponent({
           {buttons}
         </div>
       )
+
+      return <div class="ctrls-bar">{content}</div>
     }
   },
 })

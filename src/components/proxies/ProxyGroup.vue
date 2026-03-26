@@ -1,14 +1,16 @@
 <template>
-  <CollapseCard :name="proxyGroup.name">
+  <CollapseCard
+    :name="proxyGroup.name"
+    :data-group-name="proxyGroup.name"
+    @contextmenu.prevent.stop="handlerLatencyTest"
+  >
     <template v-slot:title>
-      <div
-        class="relative flex items-center gap-2"
-        @contextmenu.prevent.stop="handlerLatencyTest"
-      >
+      <div class="relative flex items-center gap-2">
         <div class="flex flex-1 items-center gap-1">
           <ProxyName
-            :name="proxyGroup.name"
-            size="large"
+            :name="name"
+            :icon-size="proxyGroupIconSize"
+            :icon-margin="proxyGroupIconMargin"
           />
           <span class="text-base-content/60 text-xs">
             : {{ proxyGroup.type }} ({{ proxiesCount }})
@@ -29,18 +31,15 @@
           </button>
         </div>
         <LatencyTag
-          :class="twMerge('bg-base-200/50 z-10 hover:shadow-sm')"
+          :class="twMerge('bg-base-200/50 hover:bg-base-200 z-10')"
           :loading="isLatencyTesting"
           :name="proxyGroup.now"
           :group-name="proxyGroup.name"
           @click.stop="handlerLatencyTest"
         />
       </div>
-      <div
-        class="text-base-content/80 mt-0.5 flex items-center gap-2"
-        @contextmenu.prevent.stop="handlerLatencyTest"
-      >
-        <div class="flex flex-1 items-center gap-1 text-sm">
+      <div class="text-base-content/80 mt-1.5 flex items-center gap-2">
+        <div class="flex flex-1 items-center gap-2 truncate text-sm">
           <ProxyGroupNow :name="name" />
         </div>
         <div class="min-w-12 shrink-0 text-right text-xs">
@@ -56,13 +55,12 @@
         @nodeclick="handlerProxySelect(name, $event)"
       />
     </template>
-    <template v-slot:content="{ showFullContent }">
+    <template v-slot:content>
       <Component
         :is="groupProxiesByProvider ? ProxiesByProvider : ProxiesContent"
         :name="name"
         :now="proxyGroup.now"
         :render-proxies="renderProxies"
-        :show-full-content="showFullContent"
       />
     </template>
   </CollapseCard>
@@ -80,7 +78,12 @@ import {
   proxyGroupLatencyTest,
   proxyMap,
 } from '@/store/proxies'
-import { groupProxiesByProvider, manageHiddenGroup } from '@/store/settings'
+import {
+  groupProxiesByProvider,
+  manageHiddenGroup,
+  proxyGroupIconMargin,
+  proxyGroupIconSize,
+} from '@/store/settings'
 import { EyeIcon, EyeSlashIcon } from '@heroicons/vue/24/outline'
 import { twMerge } from 'tailwind-merge'
 import { computed, ref } from 'vue'

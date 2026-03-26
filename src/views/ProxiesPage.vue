@@ -1,11 +1,15 @@
 <template>
   <div
-    class="max-sm:scrollbar-hidden h-full overflow-y-scroll p-2 sm:pr-1"
+    class="max-md:scrollbar-hidden h-full"
+    :class="disableProxiesPageScroll ? 'overflow-y-hidden' : 'overflow-y-scroll'"
+    :style="padding"
+    :id="PROXIES_PAGE"
     ref="proxiesRef"
     @scroll.passive="handleScroll"
   >
+    <ProxiesCtrl />
     <template v-if="displayTwoColumns">
-      <div class="grid grid-cols-2 gap-1">
+      <div class="grid grid-cols-2 gap-1 p-2 md:pr-1">
         <div
           v-for="idx in [0, 1]"
           :key="idx"
@@ -21,7 +25,7 @@
       </div>
     </template>
     <div
-      class="grid grid-cols-1 gap-1"
+      class="grid grid-cols-1 gap-1 p-2 md:pr-1"
       v-else
     >
       <component
@@ -38,16 +42,21 @@
 import ProxyGroup from '@/components/proxies/ProxyGroup.vue'
 import ProxyGroupForMobile from '@/components/proxies/ProxyGroupForMobile.vue'
 import ProxyProvider from '@/components/proxies/ProxyProvider.vue'
-import { renderGroups } from '@/composables/proxies'
+import ProxiesCtrl from '@/components/sidebar/ProxiesCtrl.tsx'
+import { usePaddingForViews } from '@/composables/paddingViews'
+import { disableProxiesPageScroll, isProxiesPageMounted, renderGroups } from '@/composables/proxies'
 import { PROXY_TAB_TYPE } from '@/constant'
-import { isMiddleScreen } from '@/helper/utils'
+import { isMiddleScreen, PROXIES_PAGE } from '@/helper/utils'
 import { fetchProxies, proxiesTabShow } from '@/store/proxies'
 import { twoColumnProxyGroup } from '@/store/settings'
-import { useElementSize, useSessionStorage } from '@vueuse/core'
+import { useSessionStorage } from '@vueuse/core'
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 
+const { padding } = usePaddingForViews({
+  offsetTop: 0,
+  offsetBottom: 0,
+})
 const proxiesRef = ref()
-const { width } = useElementSize(proxiesRef)
 const scrollStatus = useSessionStorage('cache/proxies-scroll-status', {
   [PROXY_TAB_TYPE.PROVIDER]: 0,
   [PROXY_TAB_TYPE.PROXIES]: 0,
@@ -62,7 +71,10 @@ const waitTickUntilReady = (startTime = performance.now()) => {
     performance.now() - startTime > 300 ||
     proxiesRef.value.scrollHeight > scrollStatus.value[proxiesTabShow.value]
   ) {
-    proxiesRef.value.scrollTop = scrollStatus.value[proxiesTabShow.value]
+    proxiesRef.value.scrollTo({
+      top: scrollStatus.value[proxiesTabShow.value],
+      behavior: 'smooth',
+    })
   } else {
     requestAnimationFrame(() => {
       waitTickUntilReady(startTime)
@@ -76,15 +88,16 @@ watch(proxiesTabShow, () =>
   }),
 )
 
-onMounted(() => {
-  waitTickUntilReady()
-})
+isProxiesPageMounted.value = false
 
-const isSmallScreen = computed(() => {
-  return width.value < 640 && isMiddleScreen.value
-})
-const isWidthEnough = computed(() => {
-  return width.value > 720
+onMounted(() => {
+  setTimeout(() => {
+    isProxiesPageMounted.value = true
+    nextTick(() => {
+      waitTickUntilReady()
+      fetchProxies()
+    })
+  })
 })
 
 const renderComponent = computed(() => {
@@ -92,7 +105,7 @@ const renderComponent = computed(() => {
     return ProxyProvider
   }
 
-  if (isSmallScreen.value && displayTwoColumns.value) {
+  if (isMiddleScreen.value && displayTwoColumns.value) {
     return ProxyGroupForMobile
   }
 
@@ -100,17 +113,13 @@ const renderComponent = computed(() => {
 })
 
 const displayTwoColumns = computed(() => {
-  if (renderGroups.value.length < 2 || !twoColumnProxyGroup.value) {
+  if (proxiesTabShow.value === PROXY_TAB_TYPE.PROVIDER && isMiddleScreen.value) {
     return false
   }
-  return (
-    isWidthEnough.value || (isSmallScreen.value && proxiesTabShow.value === PROXY_TAB_TYPE.PROXIES)
-  )
+  return twoColumnProxyGroup.value && renderGroups.value.length > 1
 })
 
 const filterContent: <T>(all: T[], target: number) => T[] = (all, target) => {
   return all.filter((_, index: number) => index % 2 === target)
 }
-
-fetchProxies()
 </script>

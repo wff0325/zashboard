@@ -5,7 +5,10 @@
   >
     {{ $t('importSettings') }}
   </button>
-  <DialogWrapper v-model="importDialogShow">
+  <DialogWrapper
+    v-model="importDialogShow"
+    :title="$t('importSettings')"
+  >
     <div class="my-4 flex items-center gap-2">
       {{ $t('importFromFile') }}
       <button
@@ -37,7 +40,6 @@
           @mouseenter="
             showTip($event, $t('importFromBackendTip'), {
               appendTo: 'parent',
-              placement: 'left',
             })
           "
         />
@@ -79,13 +81,13 @@
 </template>
 
 <script setup lang="ts">
-import { useNotification } from '@/composables/notification'
 import {
   autoImportSettings,
   DEFAULT_SETTINGS_URL,
   importSettingsFromUrl,
   importSettingsUrl,
 } from '@/helper/autoImportSettings'
+import { showNotification } from '@/helper/notification'
 import { useTooltip } from '@/helper/tooltip'
 import {
   ArrowDownTrayIcon,
@@ -98,7 +100,7 @@ import TextInput from './TextInput.vue'
 
 const inputRef = ref<HTMLInputElement>()
 const importDialogShow = ref(false)
-const { showNotification } = useNotification()
+
 const { showTip } = useTooltip()
 
 const handlerJsonUpload = () => {
@@ -124,6 +126,6 @@ const importSettingsFromFile = () => {
 }
 const importSettingsFromUrlHandler = async () => {
   importDialogShow.value = false
-  await importSettingsFromUrl()
+  await importSettingsFromUrl(true)
 }
 </script>

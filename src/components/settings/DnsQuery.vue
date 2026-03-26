@@ -1,25 +1,26 @@
 <template>
-  <div class="join w-96 max-sm:w-full">
+  <form
+    class="join mt-4 w-96 max-sm:w-full"
+    @submit.prevent="query"
+  >
     <TextInput
       v-model="form.name"
       placeholder="Domain Name"
       :clearable="true"
     />
-    <select
+    <TextInput
       v-model="form.type"
-      class="join-item select select-sm"
-    >
-      <option value="A">A</option>
-      <option value="AAAA">AAAA</option>
-      <option value="MX">MX</option>
-    </select>
+      class="w-28"
+      placeholder="Type"
+      :menus="['A', 'AAAA', 'HTTPS']"
+    />
     <button
+      type="submit"
       class="btn join-item btn-sm"
-      @click="query"
     >
       {{ $t('DNSQuery') }}
     </button>
-  </div>
+  </form>
   <div class="flex max-h-96 flex-col gap-1 overflow-y-auto">
     <div
       class="flex gap-1"

@@ -1,20 +1,30 @@
 <template>
-  <div class="card">
-    <div class="card-title px-4 pt-4">
-      {{ $t('proxies') }}
-    </div>
-    <div class="card-body">
-      <div class="grid grid-cols-1 gap-2 lg:grid-cols-2">
-        <div class="flex w-full items-center gap-2">
-          <span> {{ $t('speedtestUrl') }} </span>
+  <div class="flex flex-col gap-2 p-4 text-sm">
+    <template v-if="hasVisibleLatencyItems">
+      <div class="divider mt-0">
+        {{ $t('latency') }}
+      </div>
+      <div class="settings-grid">
+        <div
+          v-if="isVisibleSpeedtestUrl"
+          class="setting-item"
+        >
+          <div class="setting-item-label">
+            {{ $t('speedtestUrl') }}
+          </div>
           <TextInput
-            class="w-36 flex-1 sm:max-w-80"
+            class="flex-2"
             v-model="speedtestUrl"
             :clearable="true"
           />
         </div>
-        <div class="flex w-full items-center gap-2">
-          <span> {{ $t('speedtestTimeout') }} </span>
+        <div
+          v-if="isVisibleSpeedtestTimeout"
+          class="setting-item"
+        >
+          <div class="setting-item-label">
+            {{ $t('speedtestTimeout') }}
+          </div>
           <input
             type="number"
             class="input input-sm w-20"
@@ -22,8 +32,13 @@
           />
           ms
         </div>
-        <div class="flex items-center gap-2">
-          <span> {{ $t('lowLatencyDesc') }} </span>
+        <div
+          v-if="isVisibleLowLatency"
+          class="setting-item"
+        >
+          <div class="setting-item-label">
+            {{ $t('lowLatencyDesc') }}
+          </div>
           <input
             type="number"
             class="input input-sm w-20"
@@ -31,8 +46,13 @@
           />
           ms
         </div>
-        <div class="flex items-center gap-2">
-          <span> {{ $t('mediumLatencyDesc') }} </span>
+        <div
+          v-if="isVisibleMediumLatency"
+          class="setting-item"
+        >
+          <div class="setting-item-label">
+            {{ $t('mediumLatencyDesc') }}
+          </div>
           <input
             type="number"
             class="input input-sm w-20"
@@ -40,39 +60,115 @@
           />
           ms
         </div>
-        <div class="flex w-full items-center gap-2">
-          <span> {{ $t('independentLatencyTest') }} </span>
-          <input
-            class="toggle"
-            type="checkbox"
-            v-model="independentLatencyTest"
-          />
-          <QuestionMarkCircleIcon
-            class="h-4 w-4"
-            @mouseenter="independentLatencyTestTip"
-          />
-        </div>
-        <div class="flex items-center gap-2">
-          {{ $t('ipv6Test') }}
+        <div
+          v-if="isVisibleIpv6Test"
+          class="setting-item"
+        >
+          <div class="setting-item-label">
+            {{ $t('ipv6Test') }}
+          </div>
           <input
             class="toggle"
             type="checkbox"
             v-model="IPv6test"
           />
         </div>
+        <div
+          v-if="isVisibleIndependentLatencyTest"
+          class="setting-item"
+        >
+          <div class="setting-item-label">
+            {{ $t('independentLatencyTest') }}
+            <QuestionMarkCircleIcon
+              class="h-4 w-4"
+              @mouseenter="independentLatencyTestTip"
+            />
+          </div>
+          <input
+            class="toggle"
+            type="checkbox"
+            v-model="independentLatencyTest"
+          />
+        </div>
+        <div
+          v-if="independentLatencyTest && isVisibleGroupTestUrls"
+          class="col-span-full"
+        >
+          <GroupTestUrlsSettings />
+        </div>
       </div>
-      <div class="divider"></div>
-      <div class="grid grid-cols-1 gap-2 lg:grid-cols-2">
-        <div class="flex items-center gap-2">
-          {{ $t('twoColumnProxyGroup') }}
+    </template>
+    <template v-if="hasVisibleProxyStyleItems">
+      <div class="divider">
+        {{ $t('proxyStyle') }}
+      </div>
+      <div class="settings-grid">
+        <div
+          v-if="isVisibleTwoColumnProxyGroup"
+          class="setting-item"
+        >
+          <div class="setting-item-label">
+            {{ $t('twoColumnProxyGroup') }}
+          </div>
           <input
             class="toggle"
             type="checkbox"
             v-model="twoColumnProxyGroup"
           />
         </div>
-        <div class="flex items-center gap-2">
-          {{ $t('proxyPreviewType') }}
+        <div
+          v-if="isVisibleTruncateProxyName"
+          class="setting-item"
+        >
+          <div class="setting-item-label">
+            {{ $t('truncateProxyName') }}
+          </div>
+          <input
+            class="toggle"
+            type="checkbox"
+            v-model="truncateProxyName"
+          />
+        </div>
+        <div
+          v-if="isVisibleDisplayGlobalByMode"
+          class="setting-item"
+        >
+          <div class="setting-item-label">
+            {{ $t('displayGlobalByMode') }}
+          </div>
+          <input
+            class="toggle"
+            type="checkbox"
+            v-model="displayGlobalByMode"
+          />
+        </div>
+        <div
+          v-if="displayGlobalByMode && isSingBox && isVisibleCustomGlobalNode"
+          class="setting-item"
+        >
+          <div class="setting-item-label">
+            {{ $t('customGlobalNode') }}
+          </div>
+          <select
+            class="select select-sm min-w-24"
+            v-model="customGlobalNode"
+          >
+            <option
+              v-for="opt in Object.keys(proxyMap)"
+              :key="opt"
+              :value="opt"
+            >
+              {{ opt }}
+            </option>
+          </select>
+        </div>
+        <div
+          v-if="isVisibleProxyPreviewType"
+          class="setting-item"
+        >
+          <div class="setting-item-label">
+            {{ $t('proxyPreviewType') }}
+          </div>
           <select
             class="select select-sm min-w-24"
             v-model="proxyPreviewType"
@@ -86,23 +182,13 @@
             </option>
           </select>
         </div>
-        <div class="flex items-center gap-2">
-          {{ $t('proxyCountMode') }}
-          <select
-            class="select select-sm min-w-24"
-            v-model="proxyCountMode"
-          >
-            <option
-              v-for="opt in Object.values(PROXY_COUNT_MODE)"
-              :key="opt"
-              :value="opt"
-            >
-              {{ $t(opt) }}
-            </option>
-          </select>
-        </div>
-        <div class="flex items-center gap-2">
-          {{ $t('proxyCardSize') }}
+        <div
+          v-if="isVisibleProxyCardSize"
+          class="setting-item"
+        >
+          <div class="setting-item-label">
+            {{ $t('proxyCardSize') }}
+          </div>
           <select
             class="select select-sm min-w-24"
             v-model="proxyCardSize"
@@ -117,66 +203,49 @@
             </option>
           </select>
         </div>
-        <div class="flex items-center gap-2">
-          {{ $t('displayGlobalByMode') }}
-          <input
-            class="toggle"
-            type="checkbox"
-            v-model="displayGlobalByMode"
-          />
-        </div>
+
         <div
-          class="flex items-center gap-2"
-          v-if="displayGlobalByMode && isSingBox"
+          v-if="isVisibleProxyGroupIconSize"
+          class="setting-item"
         >
-          {{ $t('customGlobalNode') }}
-          <select
-            class="select select-sm min-w-24"
-            v-model="customGlobalNode"
-          >
-            <option
-              v-for="opt in Object.keys(proxyMap)"
-              :key="opt"
-              :value="opt"
-            >
-              {{ opt }}
-            </option>
-          </select>
-        </div>
-        <div class="flex items-center gap-2">
-          {{ $t('truncateProxyName') }}
-          <input
-            class="toggle"
-            type="checkbox"
-            v-model="truncateProxyName"
-          />
-        </div>
-        <div class="flex items-center gap-2">
-          {{ $t('proxyGroupIconSize') }}
+          <div class="setting-item-label">
+            {{ $t('proxyGroupIconSize') }}
+          </div>
           <input
             type="number"
-            class="input input-sm w-20"
+            class="input input-sm w-24"
             v-model="proxyGroupIconSize"
           />
         </div>
-        <div class="flex items-center gap-2">
-          {{ $t('proxyGroupIconMargin') }}
+        <div
+          v-if="isVisibleProxyGroupIconMargin"
+          class="setting-item"
+        >
+          <div class="setting-item-label">
+            {{ $t('proxyGroupIconMargin') }}
+          </div>
           <input
             type="number"
-            class="input input-sm w-20"
+            class="input input-sm w-24"
             v-model="proxyGroupIconMargin"
           />
         </div>
       </div>
-      <div class="divider"></div>
+    </template>
+    <template v-if="isVisibleIconSettings">
+      <div class="divider">
+        {{ $t('icon') }}
+      </div>
       <IconSettings />
-    </div>
+    </template>
   </div>
 </template>
 
 <script setup lang="ts">
 import { isSingBox } from '@/api'
-import { PROXY_CARD_SIZE, PROXY_COUNT_MODE, PROXY_PREVIEW_TYPE } from '@/constant'
+import { useIsSettingVisible } from '@/composables/settings'
+import { PROXIES_ITEM_KEYS } from '@/config/settingsItems'
+import { PROXY_CARD_SIZE, PROXY_PREVIEW_TYPE } from '@/constant'
 import { useTooltip } from '@/helper/tooltip'
 import { getMinCardWidth } from '@/helper/utils'
 import { proxyMap } from '@/store/proxies'
@@ -189,7 +258,6 @@ import {
   mediumLatency,
   minProxyCardWidth,
   proxyCardSize,
-  proxyCountMode,
   proxyGroupIconMargin,
   proxyGroupIconSize,
   proxyPreviewType,
@@ -199,9 +267,29 @@ import {
   twoColumnProxyGroup,
 } from '@/store/settings'
 import { QuestionMarkCircleIcon } from '@heroicons/vue/24/outline'
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import TextInput from '../common/TextInput.vue'
+import GroupTestUrlsSettings from './GroupTestUrlsSettings.vue'
 import IconSettings from './IconSettings.vue'
+
+const k = PROXIES_ITEM_KEYS
+const isVisibleSpeedtestUrl = useIsSettingVisible(k.speedtestUrl)
+const isVisibleSpeedtestTimeout = useIsSettingVisible(k.speedtestTimeout)
+const isVisibleLowLatency = useIsSettingVisible(k.lowLatencyDesc)
+const isVisibleMediumLatency = useIsSettingVisible(k.mediumLatencyDesc)
+const isVisibleIpv6Test = useIsSettingVisible(k.ipv6Test)
+const isVisibleIndependentLatencyTest = useIsSettingVisible(k.independentLatencyTest)
+const isVisibleGroupTestUrls = useIsSettingVisible(k.groupTestUrls)
+const isVisibleTwoColumnProxyGroup = useIsSettingVisible(k.twoColumnProxyGroup)
+const isVisibleTruncateProxyName = useIsSettingVisible(k.truncateProxyName)
+const isVisibleDisplayGlobalByMode = useIsSettingVisible(k.displayGlobalByMode)
+const isVisibleCustomGlobalNode = useIsSettingVisible(k.customGlobalNode)
+const isVisibleProxyPreviewType = useIsSettingVisible(k.proxyPreviewType)
+const isVisibleProxyCardSize = useIsSettingVisible(k.proxyCardSize)
+const isVisibleProxyGroupIconSize = useIsSettingVisible(k.proxyGroupIconSize)
+const isVisibleProxyGroupIconMargin = useIsSettingVisible(k.proxyGroupIconMargin)
+const isVisibleIconSettings = useIsSettingVisible(k.icon)
 
 const { showTip } = useTooltip()
 const { t } = useI18n()
@@ -212,4 +300,29 @@ const independentLatencyTestTip = (e: Event) => {
 const handlerProxyCardSizeChange = () => {
   minProxyCardWidth.value = getMinCardWidth(proxyCardSize.value)
 }
+
+const hasVisibleLatencyItems = computed(() => {
+  return (
+    isVisibleSpeedtestUrl.value ||
+    isVisibleSpeedtestTimeout.value ||
+    isVisibleLowLatency.value ||
+    isVisibleMediumLatency.value ||
+    isVisibleIpv6Test.value ||
+    isVisibleIndependentLatencyTest.value ||
+    (independentLatencyTest.value && isVisibleGroupTestUrls.value)
+  )
+})
+
+const hasVisibleProxyStyleItems = computed(() => {
+  return (
+    isVisibleTwoColumnProxyGroup.value ||
+    isVisibleTruncateProxyName.value ||
+    isVisibleDisplayGlobalByMode.value ||
+    (displayGlobalByMode.value && isSingBox.value && isVisibleCustomGlobalNode.value) ||
+    isVisibleProxyPreviewType.value ||
+    isVisibleProxyCardSize.value ||
+    isVisibleProxyGroupIconSize.value ||
+    isVisibleProxyGroupIconMargin.value
+  )
+})
 </script>

@@ -1,32 +1,46 @@
 <template>
-  <div class="flex h-full flex-col gap-2 overflow-x-hidden overflow-y-auto p-2">
-    <ChartsCard />
-    <NetworkCard v-if="showIPAndConnectionInfo" />
-    <div
-      class="card"
-      v-if="displayProxiesRelationship"
-    >
-      <div class="card-title absolute px-4 pt-4">
-        {{ $t('proxiesRelationship') }}
-      </div>
-      <ProxiesCharts />
-    </div>
-    <ConnectionHistory />
-    <div class="flex-1"></div>
-    <div class="card items-center justify-center gap-2 p-2 sm:flex-row">
-      {{ getLabelFromBackend(activeBackend!) }} :
-      <BackendVersion />
+  <div
+    class="h-full overflow-x-hidden overflow-y-auto"
+    :style="padding"
+  >
+    <OverviewCtrl />
+    <div class="flex flex-col gap-1 p-2">
+      <component
+        v-for="item in visibleCards"
+        :key="item"
+        :is="cardComponents[item.card]"
+      />
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import BackendVersion from '@/components/common/BackendVersion.vue'
 import ChartsCard from '@/components/overview/ChartsCard.vue'
 import ConnectionHistory from '@/components/overview/ConnectionHistory.vue'
 import NetworkCard from '@/components/overview/NetworkCard.vue'
-import ProxiesCharts from '@/components/overview/ProxiesCharts.vue'
-import { getLabelFromBackend } from '@/helper/utils'
-import { displayProxiesRelationship, showIPAndConnectionInfo } from '@/store/settings'
-import { activeBackend } from '@/store/setup'
+import ProviderTrafficOverview from '@/components/overview/ProviderTrafficOverview.vue'
+import RuleHitCountCard from '@/components/overview/RuleHitCountCard.vue'
+import TopologyCharts from '@/components/overview/TopologyCharts.vue'
+import OverviewCtrl from '@/components/sidebar/OverviewCtrl.vue'
+import { usePaddingForViews } from '@/composables/paddingViews'
+import { overviewCardOrder } from '@/store/settings'
+import type { Component } from 'vue'
+import { computed } from 'vue'
+
+const { padding } = usePaddingForViews({
+  offsetTop: 0,
+  offsetBottom: 0,
+})
+const visibleCards = computed(() => {
+  return overviewCardOrder.value.filter((card) => card.visible)
+})
+
+const cardComponents: Record<string, Component> = {
+  ChartsCard,
+  NetworkCard,
+  ProviderTrafficOverview,
+  TopologyCharts,
+  ConnectionHistory,
+  RuleHitCountCard,
+}
 </script>

@@ -1,32 +1,34 @@
 <template>
   <div :class="`collapse ${showCollapse ? 'collapse-open' : 'collapse-close'}`">
     <div
-      class="collapse-title cursor-pointer pr-4 select-none"
+      class="collapse-title cursor-pointer pr-4"
       @click="showCollapse = !showCollapse"
     >
-      <slot name="title"></slot>
+      <slot name="title" />
       <slot
         v-if="!showCollapse"
         name="preview"
-      ></slot>
+      />
     </div>
     <div
-      class="collapse-content flex flex-col gap-2 max-sm:px-2"
+      class="collapse-content p-0"
       @transitionend="handlerTransitionEnd"
     >
-      <slot
+      <div
         v-if="showContent"
-        :show-full-content="showFullContent"
-        name="content"
-      ></slot>
+        class="max-h-108 overflow-y-auto p-4 pt-0 max-md:p-2"
+        :class="[SCROLLABLE_PARENT_CLASS, !showCollapse && 'opacity-0']"
+      >
+        <slot name="content" />
+      </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { collapsedBus } from '@/composables/bus'
+import { SCROLLABLE_PARENT_CLASS } from '@/helper/utils'
 import { collapseGroupMap } from '@/store/settings'
-import { computed, onUnmounted, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 
 const props = defineProps<{
   name: string
@@ -37,33 +39,21 @@ const showCollapse = computed({
     return collapseGroupMap.value[props.name]
   },
   set(value) {
-    if (value) {
-      showFullContent.value = false
-      showContent.value = true
-    }
-
     collapseGroupMap.value[props.name] = value
   },
 })
 
+watch(showCollapse, (value) => {
+  if (value) {
+    showContent.value = true
+  }
+})
+
 const showContent = ref(showCollapse.value)
-const showFullContent = ref(showCollapse.value)
 
 const handlerTransitionEnd = () => {
-  if (showCollapse.value) {
-    showFullContent.value = true
-  } else {
+  if (!showCollapse.value) {
     showContent.value = false
   }
 }
-
-const busHandler = ({ open }: { open: boolean }) => {
-  showCollapse.value = open
-}
-
-collapsedBus.on(busHandler)
-
-onUnmounted(() => {
-  collapsedBus.off(busHandler)
-})
 </script>

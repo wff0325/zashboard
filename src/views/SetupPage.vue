@@ -119,7 +119,9 @@
           </div>
         </template>
       </Draggable>
-      <LanguageSelect class="mt-4 sm:hidden" />
+      <div class="mt-4 sm:hidden">
+        <LanguageSelect />
+      </div>
       <div class="absolute top-2 right-2 sm:hidden">
         <ImportSettings />
       </div>
@@ -138,9 +140,9 @@ import ImportSettings from '@/components/common/ImportSettings.vue'
 import TextInput from '@/components/common/TextInput.vue'
 import EditBackendModal from '@/components/settings/EditBackendModal.vue'
 import LanguageSelect from '@/components/settings/LanguageSelect.vue'
-import { useNotification } from '@/composables/notification'
 import { ROUTE_NAME } from '@/constant'
-import { getLabelFromBackend, getUrlFromBackend } from '@/helper/utils'
+import { showNotification } from '@/helper/notification'
+import { getBackendFromUrl, getLabelFromBackend, getUrlFromBackend } from '@/helper/utils'
 import router from '@/router'
 import { activeUuid, addBackend, backendList, removeBackend } from '@/store/setup'
 import type { Backend } from '@/types'
@@ -161,8 +163,6 @@ const form = reactive({
   password: '',
   label: '',
 })
-
-const { showNotification } = useNotification()
 
 const showEditModal = ref(false)
 const editingBackendUuid = ref<string>('')
@@ -243,24 +243,10 @@ const handleSubmit = async (form: Omit<Backend, 'uuid'>, quiet = false) => {
   }
 }
 
-const query = new URLSearchParams(
-  window.location.search || location.hash.match(/\?.*$/)?.[0]?.replace('?', ''),
-)
-if (query.has('hostname')) {
-  handleSubmit({
-    protocol: query.get('http')
-      ? 'http'
-      : query.get('https')
-        ? 'https'
-        : window.location.protocol.replace(':', ''),
-    secondaryPath: query.get('secondaryPath') || '',
-    host: query.get('hostname') as string,
-    port: query.get('port') as string,
-    password: query.get('secret') || '',
-    label: query.get('label') || '',
-    disableUpgradeCore:
-      query.get('disableUpgradeCore') === '1' || query.get('disableUpgradeCore') === 'core',
-  })
+const backend = getBackendFromUrl()
+
+if (backend) {
+  handleSubmit(backend)
 } else if (backendList.value.length === 0) {
   handleSubmit(form, true)
 }

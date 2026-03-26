@@ -1,7 +1,5 @@
-import { useNotification } from '@/composables/notification'
+import { showNotification } from '@/helper/notification'
 import { useStorage } from '@vueuse/core'
-
-const { showNotification } = useNotification()
 const IMPORT_SETTINGS_URL_KEY = 'config/import-settings-url'
 
 export const DEFAULT_SETTINGS_URL = './zashboard-settings.json'
@@ -9,12 +7,19 @@ export const importSettingsUrl = useStorage(IMPORT_SETTINGS_URL_KEY, DEFAULT_SET
 export const autoImportSettings = useStorage('config/auto-import-settings', false)
 
 const autoImportSettingsHash = useStorage('cache/auto-import-settings-hash', '')
-const calculateSettingsHash = (settings: Record<string, unknown>) => {
+const calculateSettingsHash = async (settings: Record<string, unknown>) => {
   const sortedKeys = Object.keys(settings).sort()
   const hashString = sortedKeys.map((key) => `${key}:${settings[key]}`).join('|')
-  return hashString
+
+  let hash = 0
+  for (let i = 0; i < hashString.length; i++) {
+    const char = hashString.charCodeAt(i)
+    hash = (hash << 5) - hash + char
+    hash = hash & hash
+  }
+  return Math.abs(hash).toString(16).padStart(8, '0')
 }
-export const importSettingsFromUrl = async () => {
+export const importSettingsFromUrl = async (force = false) => {
   const res = await fetch(importSettingsUrl.value)
   const errorHandler = () => {
     showNotification({
@@ -40,9 +45,9 @@ export const importSettingsFromUrl = async () => {
     return
   }
 
-  const newHash = calculateSettingsHash(settings)
+  const newHash = await calculateSettingsHash(settings)
 
-  if (newHash === autoImportSettingsHash.value) {
+  if (newHash === autoImportSettingsHash.value && !force) {
     return
   }
 

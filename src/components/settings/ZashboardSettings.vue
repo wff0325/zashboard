@@ -1,7 +1,10 @@
 <template>
   <!-- dashboard -->
-  <div class="card">
-    <div class="card-title px-4 pt-4">
+  <div
+    v-if="hasVisibleItems"
+    class="relative flex flex-col gap-2 p-4 text-sm"
+  >
+    <div class="settings-title">
       <div class="indicator">
         <span
           v-if="isUIUpdateAvailable"
@@ -17,6 +20,12 @@
           <span> zashboard </span>
           <span class="text-sm font-normal">
             {{ zashboardVersion }}
+            <span
+              v-if="commitId"
+              class="text-xs"
+            >
+              {{ commitId }}
+            </span>
           </span>
         </a>
       </div>
@@ -29,152 +38,207 @@
         <ArrowPathIcon class="h-4 w-4" />
       </button>
     </div>
-    <div class="card-body gap-4">
-      <div class="grid grid-cols-1 gap-2 lg:grid-cols-2">
-        <LanguageSelect />
-        <div class="flex items-center gap-2">
-          {{ $t('autoSwitchTheme') }}
-          <input
-            type="checkbox"
-            v-model="autoTheme"
-            class="toggle"
-          />
-        </div>
-        <div class="flex items-center gap-2">
-          {{ $t('defaultTheme') }}
-          <div class="join">
-            <ThemeSelector v-model:value="defaultTheme" />
-            <button
-              class="btn btn-sm join-item"
-              @click="customThemeModal = !customThemeModal"
-            >
-              <PlusIcon class="h-4 w-4" />
-            </button>
-          </div>
-          <CustomTheme v-model:value="customThemeModal" />
-        </div>
-        <div
-          class="flex items-center gap-2"
-          v-if="autoTheme"
-        >
-          {{ $t('darkTheme') }}
-          <ThemeSelector v-model:value="darkTheme" />
-        </div>
-        <div class="flex items-center gap-2">
+    <div class="settings-grid">
+      <LanguageSelect v-if="isVisibleLanguage" />
+      <div
+        v-if="isVisibleFonts"
+        class="setting-item"
+      >
+        <div class="setting-item-label">
           {{ $t('fonts') }}
-          <select
-            class="select select-sm w-48"
-            v-model="font"
-          >
-            <option
-              v-for="opt in Object.values(FONTS)"
-              :key="opt"
-              :value="opt"
-            >
-              {{ opt }}
-            </option>
-          </select>
         </div>
-        <div class="flex items-center gap-2">
-          <span class="shrink-0"> {{ $t('customBackgroundURL') }} </span>
-          <div class="join">
-            <TextInput
-              class="join-item w-48"
-              v-model="customBackgroundURL"
-              :clearable="true"
-              @update:modelValue="handlerBackgroundURLChange"
-            />
-            <button
-              class="btn join-item btn-sm"
-              @click="handlerClickUpload"
-            >
-              <ArrowUpTrayIcon class="h-4 w-4" />
-            </button>
-          </div>
-          <button
-            class="btn btn-circle join-item btn-sm"
-            v-if="customBackgroundURL"
-            @click="displayBgProperty = !displayBgProperty"
-          >
-            <AdjustmentsHorizontalIcon class="h-4 w-4" />
-          </button>
-          <input
-            ref="inputFileRef"
-            type="file"
-            accept="image/*"
-            class="hidden"
-            @change="handlerFileChange"
-          />
-        </div>
-        <template v-if="customBackgroundURL && displayBgProperty">
-          <div class="flex items-center gap-2">
-            {{ $t('transparent') }}
-            <input
-              type="range"
-              min="0"
-              max="100"
-              v-model="dashboardTransparent"
-              class="range max-w-64"
-              @touchstart.passive.stop
-              @touchmove.passive.stop
-              @touchend.passive.stop
-            />
-          </div>
-
-          <div class="flex items-center gap-2">
-            {{ $t('blurIntensity') }}
-            <input
-              type="range"
-              min="0"
-              max="40"
-              v-model="blurIntensity"
-              class="range max-w-64"
-              @touchstart.stop
-              @touchmove.stop
-              @touchend.stop
-            />
-          </div>
-        </template>
-        <div
-          class="flex items-center gap-2"
-          v-if="!isSingBox || displayAllFeatures"
+        <select
+          class="select select-sm w-48"
+          v-model="font"
         >
-          {{ $t('autoUpgrade') }}
-          <input
-            class="toggle"
-            type="checkbox"
-            v-model="autoUpgrade"
-          />
-        </div>
-      </div>
-      <div class="grid max-w-3xl grid-cols-2 gap-2 sm:grid-cols-4">
-        <template v-if="!isSingBox || displayAllFeatures">
-          <button
-            :class="twMerge('btn btn-primary btn-sm', isUIUpgrading ? 'animate-pulse' : '')"
-            @click="handlerClickUpgradeUI"
+          <option
+            v-for="opt in fontOptions"
+            :key="opt"
+            :value="opt"
           >
-            {{ $t('upgradeUI') }}
+            {{ opt }}
+          </option>
+        </select>
+      </div>
+      <div
+        v-if="isVisibleEmoji"
+        class="setting-item"
+      >
+        <div class="setting-item-label">Emoji</div>
+        <select
+          class="select select-sm w-48"
+          v-model="emoji"
+        >
+          <option
+            v-for="opt in Object.values(EMOJIS)"
+            :key="opt"
+            :value="opt"
+          >
+            {{ opt }}
+          </option>
+        </select>
+      </div>
+      <div
+        v-if="isVisibleCustomBackgroundURL"
+        class="setting-item"
+      >
+        <div class="setting-item-label">
+          {{ $t('customBackgroundURL') }}
+        </div>
+        <div class="join">
+          <TextInput
+            class="join-item w-38"
+            v-model="customBackgroundURL"
+            :clearable="true"
+            @update:modelValue="handlerBackgroundURLChange"
+          />
+          <button
+            class="btn join-item btn-sm"
+            @click="handlerClickUpload"
+          >
+            <ArrowUpTrayIcon class="h-4 w-4" />
           </button>
-          <div class="sm:hidden"></div>
-        </template>
-
+        </div>
         <button
-          class="btn btn-sm"
-          @click="exportSettings"
+          class="btn btn-circle join-item btn-sm"
+          v-if="customBackgroundURL"
+          @click="displayBgProperty = !displayBgProperty"
         >
-          {{ $t('exportSettings') }}
+          <AdjustmentsHorizontalIcon class="h-4 w-4" />
         </button>
-        <ImportSettings />
+        <input
+          ref="inputFileRef"
+          type="file"
+          accept="image/*"
+          class="hidden"
+          @change="handlerFileChange"
+        />
       </div>
+      <template v-if="customBackgroundURL && displayBgProperty && isVisibleTransparent">
+        <div class="setting-item">
+          <div class="setting-item-label">
+            {{ $t('transparent') }}
+          </div>
+          <input
+            type="range"
+            min="0"
+            max="100"
+            v-model="dashboardTransparent"
+            class="range max-w-64"
+            @touchstart.passive.stop
+            @touchmove.passive.stop
+            @touchend.passive.stop
+          />
+        </div>
+      </template>
+      <template v-if="customBackgroundURL && displayBgProperty && isVisibleBlurIntensity">
+        <div class="setting-item">
+          <div class="setting-item-label">
+            {{ $t('blurIntensity') }}
+          </div>
+          <input
+            type="range"
+            min="0"
+            max="40"
+            v-model="blurIntensity"
+            class="range max-w-64"
+            @touchstart.stop
+            @touchmove.stop
+            @touchend.stop
+          />
+        </div>
+      </template>
+      <div
+        v-if="isVisibleDefaultTheme"
+        class="setting-item"
+      >
+        <div class="setting-item-label">
+          {{ $t('defaultTheme') }}
+        </div>
+        <div class="join">
+          <ThemeSelector
+            class="w-38!"
+            v-model:value="defaultTheme"
+          />
+          <button
+            class="btn btn-sm join-item"
+            @click="customThemeModal = !customThemeModal"
+          >
+            <PlusIcon class="h-4 w-4" />
+          </button>
+        </div>
+        <CustomTheme v-model:value="customThemeModal" />
+      </div>
+      <div
+        v-if="autoTheme && isVisibleDarkTheme"
+        class="setting-item"
+      >
+        <div class="setting-item-label">
+          {{ $t('darkTheme') }}
+        </div>
+        <ThemeSelector v-model:value="darkTheme" />
+      </div>
+      <div
+        v-if="isVisibleAutoSwitchTheme"
+        class="setting-item"
+      >
+        <div class="setting-item-label">
+          {{ $t('autoSwitchTheme') }}
+        </div>
+        <input
+          type="checkbox"
+          v-model="autoTheme"
+          class="toggle"
+        />
+      </div>
+      <div
+        v-if="isVisibleAutoUpgrade"
+        class="setting-item"
+      >
+        <div class="setting-item-label">
+          {{ $t('autoUpgrade') }}
+        </div>
+        <input
+          class="toggle"
+          type="checkbox"
+          v-model="autoUpgrade"
+        />
+      </div>
+    </div>
+    <div
+      v-if="isVisibleUpgradeUI || isVisibleExportSettings || isVisibleImportSettings"
+      class="mt-4 grid max-w-3xl grid-cols-2 gap-2 gap-y-3 md:grid-cols-4"
+    >
+      <button
+        v-if="isVisibleUpgradeUI"
+        :class="twMerge('btn btn-primary btn-sm', isUIUpgrading ? 'animate-pulse' : '')"
+        @click="handlerClickUpgradeUI"
+      >
+        {{ $t('upgradeUI') }}
+      </button>
+      <div
+        v-if="isVisibleUpgradeUI"
+        class="sm:hidden"
+      ></div>
+
+      <button
+        v-if="isVisibleExportSettings"
+        class="btn btn-sm"
+        @click="exportSettings"
+      >
+        {{ $t('exportSettings') }}
+      </button>
+      <ImportSettings v-if="isVisibleImportSettings" />
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { isSingBox, upgradeUIAPI, zashboardVersion } from '@/api'
+import { upgradeUIAPI, zashboardVersion } from '@/api'
 import LanguageSelect from '@/components/settings/LanguageSelect.vue'
-import { useSettings } from '@/composables/settings'
-import { FONTS } from '@/constant'
+import { useIsSettingVisible, useSettings } from '@/composables/settings'
+import { GENERAL_ITEM_KEYS } from '@/config/settingsItems'
+import { EMOJIS, FONTS } from '@/constant'
 import { handlerUpgradeSuccess } from '@/helper'
 import { deleteBase64FromIndexedDB, LOCAL_IMAGE, saveBase64ToIndexedDB } from '@/helper/indexeddb'
 import { exportSettings, isPWA } from '@/helper/utils'
@@ -186,7 +250,7 @@ import {
   darkTheme,
   dashboardTransparent,
   defaultTheme,
-  displayAllFeatures,
+  emoji,
   font,
 } from '@/store/settings'
 import {
@@ -196,14 +260,48 @@ import {
   PlusIcon,
 } from '@heroicons/vue/24/outline'
 import { twMerge } from 'tailwind-merge'
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import ImportSettings from '../common/ImportSettings.vue'
 import TextInput from '../common/TextInput.vue'
 import CustomTheme from './CustomTheme.vue'
 import ThemeSelector from './ThemeSelector.vue'
 
 const customThemeModal = ref(false)
+const k = GENERAL_ITEM_KEYS
+const isVisibleLanguage = useIsSettingVisible(k.language)
+const isVisibleFonts = useIsSettingVisible(k.fonts)
+const isVisibleEmoji = useIsSettingVisible(k.emoji)
+const isVisibleCustomBackgroundURL = useIsSettingVisible(k.customBackgroundURL)
+const isVisibleTransparent = useIsSettingVisible(k.transparent)
+const isVisibleBlurIntensity = useIsSettingVisible(k.blurIntensity)
+const isVisibleDefaultTheme = useIsSettingVisible(k.defaultTheme)
+const isVisibleDarkTheme = useIsSettingVisible(k.darkTheme)
+const isVisibleAutoSwitchTheme = useIsSettingVisible(k.autoSwitchTheme)
+const isVisibleAutoUpgrade = useIsSettingVisible(k.autoUpgrade)
+const isVisibleUpgradeUI = useIsSettingVisible(k.upgradeUI)
+const isVisibleExportSettings = useIsSettingVisible(k.exportSettings)
+const isVisibleImportSettings = useIsSettingVisible(k.importSettings)
+
 const displayBgProperty = ref(false)
+
+const hasVisibleItems = computed(() => {
+  return (
+    isVisibleLanguage.value ||
+    isVisibleFonts.value ||
+    isVisibleEmoji.value ||
+    isVisibleCustomBackgroundURL.value ||
+    (customBackgroundURL.value && displayBgProperty.value && isVisibleTransparent.value) ||
+    (customBackgroundURL.value && displayBgProperty.value && isVisibleBlurIntensity.value) ||
+    isVisibleDefaultTheme.value ||
+    (autoTheme.value && isVisibleDarkTheme.value) ||
+    isVisibleAutoSwitchTheme.value ||
+    isVisibleAutoUpgrade.value ||
+    isVisibleUpgradeUI.value ||
+    isVisibleExportSettings.value ||
+    isVisibleImportSettings.value
+  )
+})
+const commitId = __COMMIT_ID__
 
 watch(customBackgroundURL, (value) => {
   if (value) {
@@ -231,6 +329,16 @@ const handlerFileChange = (e: Event) => {
   }
   reader.readAsDataURL(file)
 }
+
+const fontOptions = computed(() => {
+  const mode = import.meta.env.MODE
+
+  if (Object.values(FONTS).includes(mode as FONTS)) {
+    return [mode]
+  }
+
+  return Object.values(FONTS)
+})
 
 const { isUIUpdateAvailable } = useSettings()
 

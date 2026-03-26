@@ -15,11 +15,7 @@
   >
     <div :style="{ height: `${totalSize}px` }">
       <table
-        :class="[
-          'table-zebra table rounded-none shadow-md',
-          sizeOfTable,
-          isManualTable && 'table-fixed',
-        ]"
+        :class="['table rounded-none shadow-md', sizeOfTable, isManualTable && 'table-fixed']"
         :style="
           isManualTable && {
             width: `${tanstackTable.getCenterTotalSize()}px`,
@@ -117,11 +113,11 @@
               height: `${virtualRow.size}px`,
               transform: `translateY(${virtualRow.start - index * virtualRow.size}px)`,
             }"
-            class="bg-base-100 hover:bg-primary! hover:text-primary-content"
-            :class="{
-              'cursor-pointer': !isDragging,
-              'cursor-grabbing': isDragging,
-            }"
+            class="hover:bg-primary! hover:text-primary-content"
+            :class="[
+              index % 2 === 0 ? 'bg-base-100' : 'bg-base-200',
+              !isDragging ? 'cursor-pointer' : 'cursor-grabbing',
+            ]"
             @click="handlerClickRow(rows[virtualRow.index])"
           >
             <td
@@ -154,20 +150,23 @@
             >
               <template v-if="cell.column.getIsGrouped()">
                 <template v-if="rows[virtualRow.index].getCanExpand()">
-                  <div class="flex items-center">
-                    <MagnifyingGlassMinusIcon
-                      v-if="rows[virtualRow.index].getIsExpanded()"
-                      class="mr-1 inline-block h-4 w-4"
-                    />
-                    <MagnifyingGlassPlusIcon
-                      v-else
-                      class="mr-1 inline-block h-4 w-4"
+                  <div class="flex items-center overflow-hidden">
+                    <component
+                      :is="
+                        rows[virtualRow.index].getIsExpanded()
+                          ? MagnifyingGlassMinusIcon
+                          : MagnifyingGlassPlusIcon
+                      "
+                      class="mr-1 inline-block h-4 w-4 shrink-0"
                     />
                     <FlexRender
                       :render="cell.column.columnDef.cell"
                       :props="cell.getContext()"
+                      class="shrink-1 overflow-hidden"
                     />
-                    <span class="ml-1"> ({{ rows[virtualRow.index].subRows.length }}) </span>
+                    <span class="ml-1 shrink-0">
+                      ({{ rows[virtualRow.index].subRows.length }})
+                    </span>
                   </div>
                 </template>
               </template>
@@ -189,9 +188,8 @@
 </template>
 
 <script setup lang="ts">
-import { disconnectByIdAPI } from '@/api'
+import { blockConnectionByIdAPI, disconnectByIdAPI } from '@/api'
 import { useConnections } from '@/composables/connections'
-import { useNotification } from '@/composables/notification'
 import {
   CONNECTION_TAB_TYPE,
   CONNECTIONS_TABLE_ACCESSOR_KEY,
@@ -207,12 +205,14 @@ import {
   getNetworkTypeFromConnection,
   getProcessFromConnection,
 } from '@/helper'
+import { showNotification } from '@/helper/notification'
 import { getIPLabelFromMap } from '@/helper/sourceip'
 import { fromNow, prettyBytesHelper } from '@/helper/utils'
 import { connectionTabShow, renderConnections } from '@/store/connections'
 import {
   connectionTableColumns,
   proxyChainDirection,
+  showFullProxyChain,
   tableSize,
   tableWidthMode,
 } from '@/store/settings'
@@ -224,6 +224,7 @@ import {
   MagnifyingGlassMinusIcon,
   MagnifyingGlassPlusIcon,
   MapPinIcon,
+  NoSymbolIcon,
   XMarkIcon,
 } from '@heroicons/vue/24/outline'
 import {
@@ -249,9 +250,7 @@ import { twMerge } from 'tailwind-merge'
 import { computed, h, ref, type VNode } from 'vue'
 import { useI18n } from 'vue-i18n'
 import ProxyName from '../proxies/ProxyName.vue'
-
 const { handlerInfo } = useConnections()
-const { showNotification } = useNotification()
 const columnWidthMap = useStorage('config/table-column-width', {
   [CONNECTIONS_TABLE_ACCESSOR_KEY.Close]: 50,
   [CONNECTIONS_TABLE_ACCESSOR_KEY.Host]: 320,
@@ -261,6 +260,7 @@ const columnWidthMap = useStorage('config/table-column-width', {
   [CONNECTIONS_TABLE_ACCESSOR_KEY.DlSpeed]: 80,
   [CONNECTIONS_TABLE_ACCESSOR_KEY.Upload]: 80,
   [CONNECTIONS_TABLE_ACCESSOR_KEY.UlSpeed]: 80,
+  [CONNECTIONS_TABLE_ACCESSOR_KEY.Outbound]: 80,
   [CONNECTIONS_TABLE_ACCESSOR_KEY.Type]: 150,
   [CONNECTIONS_TABLE_ACCESSOR_KEY.Process]: 150,
   [CONNECTIONS_TABLE_ACCESSOR_KEY.SourceIP]: 150,
@@ -278,7 +278,7 @@ const columns: ColumnDef<Connection>[] = [
     enableSorting: false,
     id: CONNECTIONS_TABLE_ACCESSOR_KEY.Close,
     cell: ({ row }) => {
-      return h(
+      const closeButton = h(
         'button',
         {
           class: 'btn btn-xs btn-circle',
@@ -295,6 +295,30 @@ const columns: ColumnDef<Connection>[] = [
           }),
         ],
       )
+
+      if (row.original.metadata.smartBlock === 'normal') {
+        const degradeButton = h(
+          'button',
+          {
+            class: 'btn btn-xs btn-circle',
+            onClick: (e) => {
+              const connection = row.original
+
+              e.stopPropagation()
+              blockConnectionByIdAPI(connection.id)
+            },
+          },
+          [
+            h(NoSymbolIcon, {
+              class: 'h-4 w-4',
+            }),
+          ],
+        )
+
+        return h('div', { class: 'flex gap-1' }, [closeButton, degradeButton])
+      }
+
+      return closeButton
     },
   },
   {
@@ -335,10 +359,16 @@ const columns: ColumnDef<Connection>[] = [
     },
     cell: ({ row }) => {
       const chains: VNode[] = []
-      const originChains = row.original.chains
+      const isReverse = proxyChainDirection.value === PROXY_CHAIN_DIRECTION.REVERSE
+      let originChains = row.original.chains
 
+      if (!showFullProxyChain.value && originChains.length > 2) {
+        originChains = [originChains[0], originChains[originChains.length - 1]]
+      }
+
+      // 完整显示所有代理链
       originChains.forEach((chain, index) => {
-        chains.unshift(h(ProxyName, { name: chain, size: 'small', key: chain }))
+        chains.unshift(h(ProxyName, { name: chain, key: chain }))
 
         if (index < originChains.length - 1) {
           chains.unshift(
@@ -353,10 +383,18 @@ const columns: ColumnDef<Connection>[] = [
       return h(
         'div',
         {
-          class: `inline-flex items-center ${proxyChainDirection.value === PROXY_CHAIN_DIRECTION.REVERSE && 'flex-row-reverse justify-end'} gap-1`,
+          class: `flex items-center ${isReverse && 'flex-row-reverse justify-end'} gap-1`,
         },
         chains,
       )
+    },
+  },
+  {
+    header: () => t(CONNECTIONS_TABLE_ACCESSOR_KEY.Outbound),
+    id: CONNECTIONS_TABLE_ACCESSOR_KEY.Outbound,
+    accessorFn: (original) => original.chains[0],
+    cell: ({ row }) => {
+      return h(ProxyName, { name: row.original.chains[0] })
     },
   },
   {
@@ -433,8 +471,8 @@ const columns: ColumnDef<Connection>[] = [
   },
 ]
 
-const grouping = ref<GroupingState>([])
-const expanded = ref<ExpandedState>({})
+const grouping = useStorage<GroupingState>('config/table-grouping', [])
+const expanded = useStorage<ExpandedState>('config/table-expanded', {})
 const sorting = useStorage<SortingState>('config/table-sorting', [])
 const columnPinning = useStorage<ColumnPinningState>('config/table-column-pinning', {
   left: [],

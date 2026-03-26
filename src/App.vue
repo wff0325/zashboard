@@ -1,31 +1,51 @@
 <script setup lang="ts">
-import { XMarkIcon } from '@heroicons/vue/24/outline'
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, type Ref, watch } from 'vue'
 import { RouterView } from 'vue-router'
 import { useKeyboard } from './composables/keyboard'
-import { useNotification } from './composables/notification'
-import { FONTS } from './constant'
+import { EMOJIS, FONTS } from './constant'
 import { autoImportSettings, importSettingsFromUrl } from './helper/autoImportSettings'
 import { backgroundImage } from './helper/indexeddb'
-import { isPreferredDark } from './helper/utils'
+import { initNotification } from './helper/notification'
+import { getBackendFromUrl, isPreferredDark } from './helper/utils'
 import {
   blurIntensity,
   dashboardTransparent,
   disablePullToRefresh,
+  emoji,
   font,
   theme,
 } from './store/settings'
+import { activeUuid, backendList } from './store/setup'
+import type { Backend } from './types'
 
 const app = ref<HTMLElement>()
-const { tipContent, tipShowModel, tipType } = useNotification()
-const fontClassMap = {
-  [FONTS.MI_SANS]: 'font-MiSans',
-  [FONTS.SARASA_UI]: 'font-SarasaUI',
-  [FONTS.PING_FANG]: 'font-PingFang',
-  [FONTS.FIRA_SANS]: 'font-FiraSans',
-  [FONTS.SYSTEM_UI]: 'font-SystemUI',
-}
-const fontClassName = computed(() => fontClassMap[font.value])
+const toast = ref<HTMLElement>()
+
+initNotification(toast as Ref<HTMLElement>)
+
+// 字体类名映射表
+const FONT_CLASS_MAP = {
+  [EMOJIS.TWEMOJI]: {
+    [FONTS.MI_SANS]: 'font-MiSans-Twemoji',
+    [FONTS.SARASA_UI]: 'font-SarasaUI-Twemoji',
+    [FONTS.PING_FANG]: 'font-PingFang-Twemoji',
+    [FONTS.FIRA_SANS]: 'font-FiraSans-Twemoji',
+    [FONTS.SYSTEM_UI]: 'font-SystemUI-Twemoji',
+  },
+  [EMOJIS.NOTO_COLOR_EMOJI]: {
+    [FONTS.MI_SANS]: 'font-MiSans-NotoEmoji',
+    [FONTS.SARASA_UI]: 'font-SarasaUI-NotoEmoji',
+    [FONTS.PING_FANG]: 'font-PingFang-NotoEmoji',
+    [FONTS.FIRA_SANS]: 'font-FiraSans-NotoEmoji',
+    [FONTS.SYSTEM_UI]: 'font-SystemUI-NotoEmoji',
+  },
+} as const
+
+const fontClassName = computed(() => {
+  return (
+    FONT_CLASS_MAP[emoji.value]?.[font.value] || FONT_CLASS_MAP[EMOJIS.TWEMOJI][FONTS.SYSTEM_UI]
+  )
+})
 
 const setThemeColor = () => {
   const themeColor = getComputedStyle(app.value!).getPropertyValue('background-color').trim()
@@ -40,18 +60,44 @@ watch(isPreferredDark, setThemeColor)
 watch(
   disablePullToRefresh,
   () => {
+    const body = document.body
     if (disablePullToRefresh.value) {
-      document.body.style.overscrollBehavior = 'none'
-      document.documentElement.style.overscrollBehavior = 'none'
+      body.style.overscrollBehavior = 'none'
+      body.style.overflow = 'hidden'
     } else {
-      document.body.style.overscrollBehavior = ''
-      document.documentElement.style.overscrollBehavior = ''
+      body.style.overscrollBehavior = ''
+      body.style.overflow = ''
     }
   },
   {
     immediate: true,
   },
 )
+
+const isSameBackend = (b1: Omit<Backend, 'uuid'>, b2: Omit<Backend, 'uuid'>) => {
+  return (
+    b1.host === b2.host &&
+    b1.port === b2.port &&
+    b1.password === b2.password &&
+    b1.protocol === b2.protocol &&
+    b1.secondaryPath === b2.secondaryPath
+  )
+}
+
+const autoSwitchToURLBackendIfExists = () => {
+  const backend = getBackendFromUrl()
+
+  if (backend) {
+    for (const b of backendList.value) {
+      if (isSameBackend(b, backend)) {
+        activeUuid.value = b.uuid
+        return
+      }
+    }
+  }
+}
+
+autoSwitchToURLBackendIfExists()
 
 onMounted(() => {
   if (autoImportSettings.value) {
@@ -85,7 +131,7 @@ useKeyboard()
     ref="app"
     id="app-content"
     :class="[
-      'bg-base-100 flex h-dvh w-screen overflow-x-hidden',
+      'bg-base-100 flex h-dvh w-screen overflow-hidden',
       fontClassName,
       backgroundImage &&
         `custom-background-${dashboardTransparent} custom-background bg-cover bg-center`,
@@ -95,21 +141,8 @@ useKeyboard()
   >
     <RouterView />
     <div
-      class="toast-sm toast toast-end toast-top z-9999 max-w-64 text-sm md:translate-y-8"
-      v-if="tipShowModel"
-    >
-      <div
-        class="breaks-all alert flex p-2 pr-5 whitespace-normal"
-        :class="tipType"
-      >
-        {{ tipContent }}
-        <button
-          class="btn btn-circle btn-ghost btn-xs absolute top-0 right-0"
-          @click="tipShowModel = false"
-        >
-          <XMarkIcon class="size-3 cursor-pointer" />
-        </button>
-      </div>
-    </div>
+      ref="toast"
+      class="toast-sm toast toast-end toast-top z-[100000] max-w-80 text-sm md:max-w-96 md:translate-y-8"
+    />
   </div>
 </template>

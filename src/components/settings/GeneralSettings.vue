@@ -1,109 +1,143 @@
 <template>
+  <ZashboardSettings />
+
   <!-- dashboard -->
-  <div class="card">
-    <div class="card-title px-4 pt-4">
+  <div
+    v-if="hasVisibleGeneralItems"
+    class="p-4 text-sm"
+  >
+    <div class="divider my-4">
       {{ $t('general') }}
     </div>
-    <div class="card-body gap-4">
-      <div class="grid grid-cols-1 gap-2 lg:grid-cols-2">
-        <div class="flex items-center gap-2">
+    <div class="settings-grid">
+      <div
+        v-if="isVisibleAutoDisconnectIdleUDP"
+        class="setting-item"
+      >
+        <div class="setting-item-label">
           {{ $t('autoDisconnectIdleUDP') }}
-          <input
-            type="checkbox"
-            v-model="autoDisconnectIdleUDP"
-            class="toggle"
-          />
           <QuestionMarkCircleIcon
             class="h-4 w-4 cursor-pointer"
             @mouseenter="showTip($event, $t('autoDisconnectIdleUDPTip'))"
           />
         </div>
-        <div
-          class="flex items-center gap-2"
-          v-if="autoDisconnectIdleUDP"
-        >
+        <input
+          type="checkbox"
+          v-model="autoDisconnectIdleUDP"
+          class="toggle"
+        />
+      </div>
+      <div
+        v-if="autoDisconnectIdleUDP && isVisibleAutoDisconnectIdleUDPTime"
+        class="setting-item"
+      >
+        <div class="setting-item-label">
           {{ $t('autoDisconnectIdleUDPTime') }}
-          <input
-            type="number"
-            class="input input-sm w-20"
-            v-model="autoDisconnectIdleUDPTime"
-          />
-          mins
         </div>
-        <div class="flex items-center gap-2">
+        <input
+          type="number"
+          class="input input-sm w-20"
+          v-model="autoDisconnectIdleUDPTime"
+        />
+        mins
+      </div>
+      <div
+        v-if="isVisibleIPInfoAPI"
+        class="setting-item"
+      >
+        <div class="setting-item-label">
           {{ $t('IPInfoAPI') }}
-          <select
-            class="select select-sm min-w-24"
-            v-model="IPInfoAPI"
-          >
-            <option
-              v-for="opt in Object.values(IP_INFO_API)"
-              :key="opt"
-              :value="opt"
-            >
-              {{ opt }}
-            </option>
-          </select>
           <QuestionMarkCircleIcon
             class="h-4 w-4 cursor-pointer"
             @mouseenter="showTip($event, $t('IPInfoAPITip'))"
           />
         </div>
-
-        <div class="flex items-center gap-2 md:hidden">
-          {{ $t('scrollAnimationEffect') }}
-          <input
-            type="checkbox"
-            v-model="scrollAnimationEffect"
-            class="toggle"
-          />
-        </div>
-        <div class="flex items-center gap-2 md:hidden">
-          {{ $t('swipeInPages') }}
-          <input
-            type="checkbox"
-            v-model="swipeInPages"
-            class="toggle"
-          />
-        </div>
-        <div
-          class="flex items-center gap-2 md:hidden"
-          v-if="swipeInPages"
+        <select
+          class="select select-sm min-w-24"
+          v-model="IPInfoAPI"
         >
-          {{ $t('swipeInTabs') }}
-          <input
-            type="checkbox"
-            v-model="swipeInTabs"
-            class="toggle"
-          />
+          <option
+            v-for="opt in Object.values(IP_INFO_API)"
+            :key="opt"
+            :value="opt"
+          >
+            {{ opt }}
+          </option>
+        </select>
+      </div>
+
+      <div
+        v-if="isVisibleScrollAnimationEffect"
+        class="setting-item md:hidden!"
+      >
+        <div class="setting-item-label">
+          {{ $t('scrollAnimationEffect') }}
         </div>
-        <div class="flex items-center gap-2 md:hidden">
+        <input
+          type="checkbox"
+          v-model="scrollAnimationEffect"
+          class="toggle"
+        />
+      </div>
+      <div
+        v-if="isVisibleSwipeInPages"
+        class="setting-item md:hidden!"
+      >
+        <div class="setting-item-label">
+          {{ $t('swipeInPages') }}
+        </div>
+        <input
+          type="checkbox"
+          v-model="swipeInPages"
+          class="toggle"
+        />
+      </div>
+      <div
+        v-if="swipeInPages && isVisibleSwipeInTabs"
+        class="setting-item md:hidden!"
+      >
+        <div class="setting-item-label">
+          {{ $t('swipeInTabs') }}
+        </div>
+        <input
+          type="checkbox"
+          v-model="swipeInTabs"
+          class="toggle"
+        />
+      </div>
+      <div
+        v-if="isVisibleDisablePullToRefresh"
+        class="setting-item md:hidden!"
+      >
+        <div class="setting-item-label">
           {{ $t('disablePullToRefresh') }}
-          <input
-            type="checkbox"
-            v-model="disablePullToRefresh"
-            class="toggle"
-          />
           <QuestionMarkCircleIcon
             class="h-4 w-4 cursor-pointer"
             @mouseenter="showTip($event, $t('disablePullToRefreshTip'))"
           />
         </div>
-        <div
-          class="flex items-center gap-2"
-          v-if="isSingBox"
-        >
+        <input
+          type="checkbox"
+          v-model="disablePullToRefresh"
+          class="toggle"
+        />
+      </div>
+      <div
+        v-if="isSingBox && isVisibleDisplayAllFeatures"
+        class="setting-item"
+      >
+        <div class="setting-item-label">
           {{ $t('displayAllFeatures') }}
-          <input
-            type="checkbox"
-            v-model="displayAllFeatures"
-            class="toggle"
-          />
           <QuestionMarkCircleIcon
             class="h-4 w-4 cursor-pointer"
             @mouseenter="showTip($event, $t('displayAllFeaturesTip'))"
           />
         </div>
+        <input
+          type="checkbox"
+          v-model="displayAllFeatures"
+          class="toggle"
+        />
       </div>
     </div>
   </div>
@@ -111,6 +145,8 @@
 
 <script setup lang="ts">
 import { isSingBox } from '@/api'
+import { useIsSettingVisible } from '@/composables/settings'
+import { GENERAL_ITEM_KEYS } from '@/config/settingsItems'
 import { IP_INFO_API } from '@/constant'
 import { useTooltip } from '@/helper/tooltip'
 import {
@@ -124,6 +160,31 @@ import {
   swipeInTabs,
 } from '@/store/settings'
 import { QuestionMarkCircleIcon } from '@heroicons/vue/24/outline'
+import { computed } from 'vue'
+import ZashboardSettings from './ZashboardSettings.vue'
 
 const { showTip } = useTooltip()
+
+const k = GENERAL_ITEM_KEYS
+const isVisibleAutoDisconnectIdleUDP = useIsSettingVisible(k.autoDisconnectIdleUDP)
+const isVisibleAutoDisconnectIdleUDPTime = useIsSettingVisible(k.autoDisconnectIdleUDPTime)
+const isVisibleIPInfoAPI = useIsSettingVisible(k.IPInfoAPI)
+const isVisibleScrollAnimationEffect = useIsSettingVisible(k.scrollAnimationEffect)
+const isVisibleSwipeInPages = useIsSettingVisible(k.swipeInPages)
+const isVisibleSwipeInTabs = useIsSettingVisible(k.swipeInTabs)
+const isVisibleDisablePullToRefresh = useIsSettingVisible(k.disablePullToRefresh)
+const isVisibleDisplayAllFeatures = useIsSettingVisible(k.displayAllFeatures)
+
+const hasVisibleGeneralItems = computed(() => {
+  return (
+    isVisibleAutoDisconnectIdleUDP.value ||
+    (autoDisconnectIdleUDP.value && isVisibleAutoDisconnectIdleUDPTime.value) ||
+    isVisibleIPInfoAPI.value ||
+    isVisibleScrollAnimationEffect.value ||
+    isVisibleSwipeInPages.value ||
+    (swipeInPages.value && isVisibleSwipeInTabs.value) ||
+    isVisibleDisablePullToRefresh.value ||
+    (isSingBox.value && isVisibleDisplayAllFeatures.value)
+  )
+})
 </script>

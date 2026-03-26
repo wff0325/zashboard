@@ -1,11 +1,10 @@
 <template>
   <DialogWrapper
     v-model="isVisible"
-    @keydown.enter="!isSaving && handleSave()"
+    :title="t('editBackendTitle')"
+    @enter="!isSaving && handleSave()"
   >
     <div class="flex flex-col gap-4">
-      <h3 class="text-lg font-bold">{{ t('editBackendTitle') }}</h3>
-
       <!-- 后端选择器 -->
       <div class="flex flex-col gap-1">
         <label class="text-sm">{{ t('selectBackend') }}</label>
@@ -113,7 +112,7 @@
 import { isBackendAvailable } from '@/api'
 import DialogWrapper from '@/components/common/DialogWrapper.vue'
 import TextInput from '@/components/common/TextInput.vue'
-import { useNotification } from '@/composables/notification'
+import { showNotification } from '@/helper/notification'
 import { getLabelFromBackend } from '@/helper/utils'
 import { activeBackend, backendList, updateBackend } from '@/store/setup'
 import type { Backend } from '@/types'
@@ -133,7 +132,6 @@ interface Emits {
 const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
 
-const { showNotification } = useNotification()
 const { t } = useI18n()
 
 const isVisible = computed({

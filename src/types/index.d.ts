@@ -27,7 +27,7 @@ export type Config = {
   }
 }
 
-type History = {
+export type History = {
   time: string
   delay: number
 }[]
@@ -51,6 +51,8 @@ export type Proxy = {
   icon: string
   hidden?: boolean
   testUrl?: string
+  'dialer-proxy'?: string
+  'provider-name'?: string
 }
 
 export type SubscriptionInfo = {
@@ -74,6 +76,18 @@ export type Rule = {
   payload: string
   proxy: string
   size: number
+  uuid: string
+  // sing-box-reFind
+  disabled?: boolean
+  // mihomo
+  index: number
+  extra?: {
+    disabled: false
+    hitAt: string
+    hitCount: number
+    missAt: string
+    missCount: number
+  }
 }
 
 export type RuleProvider = {
@@ -119,6 +133,7 @@ export type ConnectionRawMessage = {
     specialRules: string
     type: string
     uid: number
+    smartBlock: string
   }
 }
 
@@ -159,4 +174,11 @@ export type SourceIPLabel = {
   label: string
   id: string
   scope?: string[]
+}
+
+// smart core
+export interface NodeRank {
+  Name: string
+  Rank: string
+  Weight: number
 }

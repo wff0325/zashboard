@@ -7,6 +7,8 @@ import {
   SwatchIcon,
 } from '@heroicons/vue/24/outline'
 
+export const IS_APPLE_DEVICE = /Mac|iPod|iPhone|iPad/.test(navigator.platform)
+
 export const GLOBAL = 'GLOBAL'
 export const TEST_URL = 'https://www.gstatic.com/generate_204'
 export const IPV6_TEST_URL = 'https://ipv6.google.com/generate_204'
@@ -14,6 +16,7 @@ export const NOT_CONNECTED = 0
 export enum LANG {
   EN_US = 'en-US',
   ZH_CN = 'zh-CN',
+  ZH_TW = 'zh-TW',
   RU_RU = 'ru-RU',
 }
 
@@ -25,6 +28,11 @@ export enum FONTS {
   SYSTEM_UI = 'SystemUI',
 }
 
+export enum EMOJIS {
+  TWEMOJI = 'twemoji',
+  NOTO_COLOR_EMOJI = 'noto-color-emoji',
+}
+
 export enum CONNECTIONS_TABLE_ACCESSOR_KEY {
   Close = 'close',
   Type = 'type',
@@ -32,6 +40,7 @@ export enum CONNECTIONS_TABLE_ACCESSOR_KEY {
   Host = 'host',
   Rule = 'rule',
   Chains = 'chains',
+  Outbound = 'outbound',
   DlSpeed = 'dlSpeed',
   UlSpeed = 'ulSpeed',
   Download = 'dl',
@@ -164,12 +173,6 @@ export enum PROXY_TYPE {
   LoadBalance = 'loadbalance',
 }
 
-export enum PROXY_COUNT_MODE {
-  FILTERED_TOTAL = 'filteredTotal',
-  TOTAL = 'total',
-  ALIVE_TOTAL = 'aliveTotal',
-}
-
 export const SIMPLE_CARD_STYLE = [
   [CONNECTIONS_TABLE_ACCESSOR_KEY.Host, CONNECTIONS_TABLE_ACCESSOR_KEY.ConnectTime],
   [
@@ -198,6 +201,7 @@ export const ALL_THEME = [
   'dark',
   'light-legacy',
   'dark-legacy',
+  ...(window.ksu ? ['light-monet', 'dark-monet'] : []),
   'cupcake',
   'bumblebee',
   'emerald',
@@ -275,4 +279,44 @@ export enum IP_INFO_API {
   IPSB = 'ip.sb',
   IPWHOIS = 'ipwho.is',
   IPAPI = 'ipapi.is',
+}
+
+export enum SETTINGS_MENU_KEY {
+  general = 'generalSettings',
+  backend = 'backendSettings',
+  proxies = 'proxySettings',
+  connections = 'connectionSettings',
+  overview = 'overviewSettings',
+}
+
+export enum OVERVIEW_CARD {
+  ChartsCard = 'ChartsCard',
+  NetworkCard = 'NetworkCard',
+  ProviderTrafficOverview = 'ProviderTrafficOverview',
+  TopologyCharts = 'TopologyCharts',
+  ConnectionHistory = 'ConnectionHistory',
+  RuleHitCountCard = 'RuleHitCountCard',
+}
+
+export enum MIHOMO {
+  Meta = 'meta',
+  Alpha = 'alpha',
+  Smart = 'smart',
+}
+
+export const MIHOMO_CHANNEL: Record<MIHOMO, { url: string; check_update_url: string }> = {
+  [MIHOMO.Meta]: {
+    url: 'https://github.com/metacubex/mihomo',
+    check_update_url: 'https://api.github.com/repos/MetaCubeX/mihomo/releases/latest',
+  },
+  [MIHOMO.Alpha]: {
+    url: 'https://github.com/metacubex/mihomo',
+    check_update_url:
+      'https://api.github.com/repos/MetaCubeX/mihomo/releases/tags/Prerelease-Alpha',
+  },
+  [MIHOMO.Smart]: {
+    url: 'https://github.com/vernesong/mihomo',
+    check_update_url:
+      'https://api.github.com/repos/vernesong/mihomo/releases/tags/Prerelease-Alpha',
+  },
 }

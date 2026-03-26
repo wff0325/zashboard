@@ -1,7 +1,6 @@
 <script setup lang="ts">
-import { useCalculateMaxProxies } from '@/composables/calculateMaxProxies'
-import { SCROLLABLE_PARENT_CLASS } from '@/helper/utils'
-import { handlerProxySelect, proxyProviederList } from '@/store/proxies'
+import { useCalculateMaxProxies } from '@/composables/proxiesScroll'
+import { handlerProxySelect, proxyMap, proxyProviederList } from '@/store/proxies'
 import { computed } from 'vue'
 import ProxyNodeCard from './ProxyNodeCard.vue'
 import ProxyNodeGrid from './ProxyNodeGrid.vue'
@@ -10,7 +9,6 @@ const props = defineProps<{
   name: string
   now: string
   renderProxies: string[]
-  showFullContent: boolean
 }>()
 
 const groupedProxies = computed(() => {
@@ -18,9 +16,12 @@ const groupedProxies = computed(() => {
   const providerKeys: string[] = []
 
   for (const proxy of props.renderProxies) {
+    const proxyNode = proxyMap.value[proxy]
     const providerName =
-      proxyProviederList.value.find((group) => group.proxies.find((node) => node.name === proxy))
-        ?.name ?? ''
+      proxyNode['provider-name'] ||
+      (proxyProviederList.value.find((group) => group.proxies.find((node) => node.name === proxy))
+        ?.name ??
+        '')
 
     if (groupdProixes[providerName]) {
       groupdProixes[providerName].push(proxy)
@@ -35,19 +36,47 @@ const groupedProxies = computed(() => {
     }
   }
 
-  return providerKeys.map((providerName) => [providerName, groupdProixes[providerName]])
+  return providerKeys.map((providerName) => ({
+    providerName,
+    proxies: groupdProixes[providerName],
+  }))
 })
 
-const { maxProxies } = useCalculateMaxProxies()
+const activeIndex = groupedProxies.value.reduce((acc, { proxies }) => {
+  const index = proxies.indexOf(props.now)
+
+  if (index !== -1) {
+    return acc + index
+  }
+  return acc + proxies.length
+}, 0)
+
+const { maxProxies } = useCalculateMaxProxies(props.renderProxies.length, activeIndex)
+
+const truncatedProxies = computed(() => {
+  let displayCount = 0
+  const truncatedProxies: { providerName: string; proxies: string[] }[] = []
+
+  for (const { providerName, proxies } of groupedProxies.value) {
+    if (displayCount + proxies.length > maxProxies.value) {
+      truncatedProxies.push({
+        providerName,
+        proxies: proxies.slice(0, maxProxies.value - displayCount),
+      })
+      break
+    } else {
+      truncatedProxies.push({ providerName, proxies })
+      displayCount += proxies.length
+    }
+  }
+  return truncatedProxies
+})
 </script>
 
 <template>
-  <div
-    class="flex max-h-108 flex-col gap-2 overflow-x-hidden overflow-y-auto"
-    :class="SCROLLABLE_PARENT_CLASS"
-  >
+  <div class="flex flex-col gap-2">
     <div
-      v-for="([providerName, proxies], index) in groupedProxies"
+      v-for="({ providerName, proxies }, index) in truncatedProxies"
       :key="index"
     >
       <p
@@ -56,9 +85,9 @@ const { maxProxies } = useCalculateMaxProxies()
       >
         {{ providerName }}
       </p>
-      <ProxyNodeGrid style="max-height: unset !important">
+      <ProxyNodeGrid>
         <ProxyNodeCard
-          v-for="node in showFullContent ? proxies : proxies.slice(0, maxProxies)"
+          v-for="node in proxies"
           :key="node"
           :name="node"
           :group-name="name"

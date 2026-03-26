@@ -1,10 +1,19 @@
-import { useNotification } from '@/composables/notification'
-import { ROUTE_NAME } from '@/constant'
+import { MIHOMO, MIHOMO_CHANNEL, ROUTE_NAME } from '@/constant'
+import { showNotification } from '@/helper/notification'
 import { getUrlFromBackend } from '@/helper/utils'
 import router from '@/router'
 import { autoUpgradeCore, checkUpgradeCore } from '@/store/settings'
 import { activeBackend, activeUuid } from '@/store/setup'
-import type { Backend, Config, DNSQuery, Proxy, ProxyProvider, Rule, RuleProvider } from '@/types'
+import type {
+  Backend,
+  Config,
+  DNSQuery,
+  NodeRank,
+  Proxy,
+  ProxyProvider,
+  Rule,
+  RuleProvider,
+} from '@/types'
 import axios, { AxiosError } from 'axios'
 import { debounce } from 'lodash'
 import ReconnectingWebSocket from 'reconnectingwebsocket'
@@ -16,6 +25,8 @@ axios.interceptors.request.use((config) => {
   return config
 })
 
+const ignoreNotificationUrls = ['/delay', '/weights']
+
 axios.interceptors.response.use(
   null,
   (
@@ -23,8 +34,6 @@ axios.interceptors.response.use(
       message: string
     }>,
   ) => {
-    const { showNotification } = useNotification()
-
     if (error.status === 401 && activeUuid.value) {
       const currentBackendUuid = activeUuid.value
       activeUuid.value = null
@@ -35,9 +44,12 @@ axios.interceptors.response.use(
       nextTick(() => {
         showNotification({ content: 'unauthorizedTip' })
       })
-    } else if (!error.config?.url?.endsWith('/delay')) {
+    } else if (!ignoreNotificationUrls.some((url) => error.config?.url?.endsWith(url))) {
+      const errorMessage = error.response?.data?.message || error.message
+
       showNotification({
-        content: error.response?.data?.message || error.message,
+        key: errorMessage,
+        content: `${decodeURIComponent(error.config?.url || '')} \n${errorMessage}`,
         type: 'alert-error',
       })
       return Promise.reject(error)
@@ -53,6 +65,22 @@ export const fetchVersionAPI = () => {
   return axios.get<{ version: string }>('/version')
 }
 export const isSingBox = computed(() => version.value?.includes('sing-box'))
+export const mihomo = computed<[MIHOMO, string] | undefined>(() => {
+  if (isSingBox.value) return undefined
+  else {
+    const match = /(alpha-smart|alpha|beta|meta)-?(\w+)/.exec(version.value)
+    switch (match?.[1]) {
+      case 'alpha':
+        return [MIHOMO.Alpha, match[2] ?? version.value]
+      case 'alpha-smart':
+        return [MIHOMO.Smart, match[2] ?? version.value]
+      case 'meta':
+        return [MIHOMO.Meta, match[2] ?? version.value]
+      default:
+        return undefined
+    }
+  }
+})
 export const zashboardVersion = ref(__APP_VERSION__)
 
 watch(
@@ -67,7 +95,7 @@ watch(
       isCoreUpdateAvailable.value = await fetchBackendUpdateAvailableAPI()
 
       if (isCoreUpdateAvailable.value && autoUpgradeCore.value) {
-        upgradeCoreAPI()
+        upgradeCoreAPI('auto')
       }
     }
   },
@@ -104,10 +132,18 @@ export const fetchProxyGroupLatencyAPI = (proxyName: string, url: string, timeou
   })
 }
 
+export const fetchSmartWeightsAPI = () => {
+  return axios.get<{
+    message: string
+    weights: Record<string, NodeRank[]>
+  }>(`/group/weights`)
+}
+
+// deprecated
 export const fetchSmartGroupWeightsAPI = (proxyName: string) => {
   return axios.get<{
     message: string
-    weights: Record<string, string>
+    weights: NodeRank[]
   }>(`/group/${encodeURIComponent(proxyName)}/weights`)
 }
 
@@ -136,12 +172,24 @@ export const fetchRulesAPI = () => {
   return axios.get<{ rules: Rule[] }>('/rules')
 }
 
+export const toggleRuleDisabledAPI = (data: Record<number, boolean>) => {
+  return axios.patch(`/rules/disable`, data)
+}
+
+export const toggleRuleDisabledSingBoxAPI = (uuid: string) => {
+  return axios.put(`/rules/${encodeURIComponent(uuid)}`)
+}
+
 export const fetchRuleProvidersAPI = () => {
   return axios.get<{ providers: Record<string, RuleProvider> }>('/providers/rules')
 }
 
 export const updateRuleProviderAPI = (name: string) => {
   return axios.put(`/providers/rules/${encodeURIComponent(name)}`)
+}
+
+export const blockConnectionByIdAPI = (id: string) => {
+  return axios.delete(`/connections/smart/${id}`)
 }
 
 export const disconnectByIdAPI = (id: string) => {
@@ -164,8 +212,22 @@ export const flushFakeIPAPI = () => {
   return axios.post('/cache/fakeip/flush')
 }
 
+export const flushDNSCacheAPI = () => {
+  return axios.post('/cache/dns/flush')
+}
+
 export const reloadConfigsAPI = () => {
   return axios.put('/configs?reload=true', { path: '', payload: '' })
+}
+
+export const updateConfigsAPI = (
+  config: { path?: string; payload?: string },
+  force: boolean = false,
+) => {
+  return axios.put(`/configs${force ? '?force=true' : ''}`, {
+    path: config.path || '',
+    payload: config.payload || '',
+  })
 }
 
 export const upgradeUIAPI = () => {
@@ -176,8 +238,10 @@ export const updateGeoDataAPI = () => {
   return axios.post('/configs/geo')
 }
 
-export const upgradeCoreAPI = () => {
-  return axios.post('/upgrade')
+export const upgradeCoreAPI = (type: 'release' | 'alpha' | 'auto') => {
+  const url = type === 'auto' ? '/upgrade' : `/upgrade?channel=${type}`
+
+  return axios.post(url)
 }
 
 export const restartCoreAPI = () => {
@@ -311,32 +375,15 @@ export const fetchIsUIUpdateAvailable = async () => {
 }
 
 const check = async (url: string, versionNumber: string) => {
-  const { assets } = await fetchWithLocalCache<{ assets: { name: string }[] }>(
-    `https://api.github.com/repos/MetaCubeX/mihomo${url}`,
-    versionNumber,
-  )
+  const { assets } = await fetchWithLocalCache<{ assets: { name: string }[] }>(url, versionNumber)
   const alreadyLatest = assets.some(({ name }) => name.includes(versionNumber))
 
   return !alreadyLatest
 }
 
 export const fetchBackendUpdateAvailableAPI = async () => {
-  const match = /(alpha|beta|meta)-?(\w+)/.exec(version.value)
-
-  if (!match) {
-    const { tag_name } = await fetchWithLocalCache<{ tag_name: string }>(
-      'https://api.github.com/repos/MetaCubeX/mihomo/releases/latest',
-      version.value,
-    )
-
-    return Boolean(tag_name && !tag_name.endsWith(version.value))
-  }
-
-  const channel = match[1],
-    versionNumber = match[2]
-
-  if (channel === 'meta') return await check('/releases/latest', versionNumber)
-  if (channel === 'alpha') return await check('/releases/tags/Prerelease-Alpha', versionNumber)
-
-  return false
+  return await check(
+    MIHOMO_CHANNEL[mihomo.value?.[0] ?? MIHOMO.Meta].check_update_url,
+    mihomo.value?.[1] ?? version.value,
+  )
 }

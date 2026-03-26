@@ -1,8 +1,13 @@
 import { updateRuleProviderAPI } from '@/api'
-import { useNotification } from '@/composables/notification'
+import { useCtrlsBar } from '@/composables/useCtrlsBar'
 import { RULE_TAB_TYPE } from '@/constant'
+import { showNotification } from '@/helper/notification'
 import { fetchRules, ruleProviderList, rules, rulesFilter, rulesTabShow } from '@/store/rules'
-import { displayLatencyInRule, displayNowNodeInRule } from '@/store/settings'
+import {
+  disconnectOnRuleDisable,
+  displayLatencyInRule,
+  displayNowNodeInRule,
+} from '@/store/settings'
 import { ArrowPathIcon, WrenchScrewdriverIcon } from '@heroicons/vue/24/outline'
 import { computed, defineComponent, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -11,20 +16,15 @@ import TextInput from '../common/TextInput.vue'
 
 export default defineComponent({
   name: 'RulesCtrl',
-  props: {
-    isLargeCtrlsBar: {
-      type: Boolean,
-      default: true,
-    },
-  },
-  setup(props) {
+  setup() {
     const { t } = useI18n()
     const settingsModel = ref(false)
     const isUpgrading = ref(false)
+    const { isLargeCtrlsBar } = useCtrlsBar()
     const hasProviders = computed(() => {
       return ruleProviderList.value.length > 0
     })
-    const { showNotification } = useNotification()
+
     const handlerClickUpgradeAllProviders = async () => {
       if (isUpgrading.value) return
       isUpgrading.value = true
@@ -39,6 +39,7 @@ export default defineComponent({
               const isFinished = updateCount === ruleProviderList.value.length
 
               showNotification({
+                key: 'updateFinishedTip',
                 content: 'updateFinishedTip',
                 params: {
                   number: `${updateCount}/${ruleProviderList.value.length}`,
@@ -97,7 +98,7 @@ export default defineComponent({
 
       const searchInput = (
         <TextInput
-          class={props.isLargeCtrlsBar ? 'w-80' : 'w-32 flex-1'}
+          class={isLargeCtrlsBar.value ? 'w-80' : 'w-32 flex-1'}
           v-model={rulesFilter.value}
           placeholder={`${t('search')} | ${t('searchMultiple')}`}
           clearable={true}
@@ -112,7 +113,10 @@ export default defineComponent({
           >
             <WrenchScrewdriverIcon class="h-4 w-4" />
           </button>
-          <DialogWrapper v-model={settingsModel.value}>
+          <DialogWrapper
+            v-model={settingsModel.value}
+            title={t('ruleSettings')}
+          >
             <div class="flex flex-col gap-4 p-2 text-sm">
               <div class="flex items-center gap-2">
                 {t('displaySelectedNode')}
@@ -130,28 +134,33 @@ export default defineComponent({
                   v-model={displayLatencyInRule.value}
                 />
               </div>
+              <div class="flex items-center gap-2">
+                {t('disconnectOnRuleDisable')}
+                <input
+                  class="toggle"
+                  type="checkbox"
+                  v-model={disconnectOnRuleDisable.value}
+                />
+              </div>
             </div>
           </DialogWrapper>
         </>
       )
 
-      if (!props.isLargeCtrlsBar) {
-        return (
-          <div class="flex flex-col gap-2 p-2">
-            {hasProviders.value && (
-              <div class="flex gap-2">
-                {tabs}
-                {upgradeAllIcon}
-              </div>
-            )}
-            <div class="flex w-full gap-2">
-              {searchInput}
-              {settingsModal}
+      const content = !isLargeCtrlsBar.value ? (
+        <div class="flex flex-col gap-2 p-2">
+          {hasProviders.value && (
+            <div class="flex gap-2">
+              {tabs}
+              {upgradeAllIcon}
             </div>
+          )}
+          <div class="flex w-full gap-2">
+            {searchInput}
+            {settingsModal}
           </div>
-        )
-      }
-      return (
+        </div>
+      ) : (
         <div class="flex flex-wrap gap-2 p-2">
           {hasProviders.value && tabs}
           {searchInput}
@@ -160,6 +169,8 @@ export default defineComponent({
           {settingsModal}
         </div>
       )
+
+      return <div class="ctrls-bar">{content}</div>
     }
   },
 })

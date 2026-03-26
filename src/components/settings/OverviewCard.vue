@@ -1,19 +1,12 @@
 <template>
   <!-- overview -->
-  <div class="card">
-    <div class="card-title px-4 pt-4">
+  <div class="flex flex-col gap-2 p-4 text-sm">
+    <div class="divider">
       {{ $t('overview') }}
     </div>
-    <div
-      :class="[
-        'card-body grid grid-cols-1 gap-2',
-        isSidebarCollapsed
-          ? ['md:grid-cols-2', showIPAndConnectionInfo ? 'lg:grid-cols-3' : 'xl:grid-cols-4']
-          : ['lg:grid-cols-2', showIPAndConnectionInfo ? 'xl:grid-cols-3' : '2xl:grid-cols-4'],
-      ]"
-    >
+    <div class="settings-grid">
       <StatisticsStats type="settings" />
-      <template v-if="showIPAndConnectionInfo">
+      <template v-if="isVisibleNetworkCard">
         <IPCheck />
         <ConnectionStatus />
       </template>
@@ -31,8 +24,11 @@ import IPCheck from '@/components/overview/IPCheck.vue'
 import MemoryCharts from '@/components/overview/MemoryCharts.vue'
 import SpeedCharts from '@/components/overview/SpeedCharts.vue'
 import StatisticsStats from '@/components/overview/StatisticsStats.vue'
-import { isSidebarCollapsed, showIPAndConnectionInfo } from '@/store/settings'
+import { useIsSettingVisible } from '@/composables/settings'
+import { OVERVIEW_ITEM_KEYS } from '@/config/settingsItems'
 import { onMounted, ref } from 'vue'
+
+const isVisibleNetworkCard = useIsSettingVisible(OVERVIEW_ITEM_KEYS.networkCard)
 
 const isMounted = ref(false)
 

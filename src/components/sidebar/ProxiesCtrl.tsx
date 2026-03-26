@@ -1,9 +1,10 @@
-import { updateProxyProviderAPI } from '@/api'
-import { collapsedBus } from '@/composables/bus'
+import { disconnectByIdAPI, isSingBox, updateProxyProviderAPI } from '@/api'
 import { renderGroups } from '@/composables/proxies'
-import { PROXY_SORT_TYPE, PROXY_TAB_TYPE } from '@/constant'
+import { useCtrlsBar } from '@/composables/useCtrlsBar'
+import { PROXY_SORT_TYPE, PROXY_TAB_TYPE, ROUTE_NAME, SETTINGS_MENU_KEY } from '@/constant'
 import { getMinCardWidth } from '@/helper/utils'
 import { configs, updateConfigs } from '@/store/config'
+import { activeConnections } from '@/store/connections'
 import {
   allProxiesLatencyTest,
   fetchProxies,
@@ -16,6 +17,7 @@ import {
 import {
   automaticDisconnection,
   collapseGroupMap,
+  displayFinalOutbound,
   groupProxiesByProvider,
   hideUnavailableProxies,
   manageHiddenGroup,
@@ -35,22 +37,19 @@ import {
 import { every } from 'lodash'
 import { computed, defineComponent, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useRouter } from 'vue-router'
 import DialogWrapper from '../common/DialogWrapper.vue'
 import TextInput from '../common/TextInput.vue'
 
 export default defineComponent({
   name: 'ProxiesCtrl',
-  props: {
-    isLargeCtrlsBar: {
-      type: Boolean,
-      default: true,
-    },
-  },
-  setup(props) {
+  setup() {
     const { t } = useI18n()
+    const router = useRouter()
     const isUpgrading = ref(false)
     const isAllLatencyTesting = ref(false)
     const settingsModel = ref(false)
+    const { isLargeCtrlsBar } = useCtrlsBar()
     const handlerClickUpdateAllProviders = async () => {
       if (isUpgrading.value) return
       isUpgrading.value = true
@@ -81,6 +80,13 @@ export default defineComponent({
     const handlerModeChange = (e: Event) => {
       const mode = (e.target as HTMLSelectElement).value
       updateConfigs({ mode })
+      if (isSingBox.value && automaticDisconnection.value) {
+        activeConnections.value.forEach((connection) => {
+          if (connection.rule.includes('clash_mode')) {
+            disconnectByIdAPI(connection.id)
+          }
+        })
+      }
     }
 
     const handlerClickLatencyTestAll = async () => {
@@ -99,9 +105,9 @@ export default defineComponent({
     })
 
     const handlerClickToggleCollapse = () => {
-      collapsedBus.emit({
-        open: !hasNotCollapsed.value,
-      })
+      collapseGroupMap.value = Object.fromEntries(
+        renderGroups.value.map((name) => [name, !hasNotCollapsed.value]),
+      )
     }
 
     const handlerResetProxyCardWidth = () => {
@@ -149,7 +155,7 @@ export default defineComponent({
       )
       const modeSelect = configs.value && (
         <select
-          class={['select select-sm inline-block', props.isLargeCtrlsBar ? 'min-w-40' : 'min-w-24']}
+          class={['select select-sm', isLargeCtrlsBar.value ? 'min-w-40' : 'min-w-24']}
           v-model={configs.value.mode}
           onChange={handlerModeChange}
         >
@@ -216,7 +222,7 @@ export default defineComponent({
 
       const searchInput = (
         <TextInput
-          class={['w-32 flex-1', props.isLargeCtrlsBar && 'max-w-80']}
+          class={['w-32 flex-1', isLargeCtrlsBar.value && 'max-w-80']}
           v-model={proxiesFilter.value}
           placeholder={`${t('search')} | ${t('searchMultiple')}`}
           clearable={true}
@@ -231,7 +237,10 @@ export default defineComponent({
           >
             <WrenchScrewdriverIcon class="h-4 w-4" />
           </button>
-          <DialogWrapper v-model={settingsModel.value}>
+          <DialogWrapper
+            v-model={settingsModel.value}
+            title={t('proxySettings')}
+          >
             <div class="flex flex-col gap-4 p-2 text-sm">
               <div class="flex items-center gap-2">
                 {t('sortBy')}
@@ -280,6 +289,14 @@ export default defineComponent({
                 />
               </div>
               <div class="flex items-center gap-2">
+                {t('displayFinalOutbound')}
+                <input
+                  class="toggle"
+                  type="checkbox"
+                  v-model={displayFinalOutbound.value}
+                />
+              </div>
+              <div class="flex items-center gap-2">
                 {t('minProxyCardWidth')}
                 <div class="join">
                   <input
@@ -295,31 +312,41 @@ export default defineComponent({
                   </button>
                 </div>
               </div>
+              <div class="divider m-0"></div>
+              <button
+                class="btn btn-block"
+                onClick={() => {
+                  settingsModel.value = false
+                  router.push({
+                    name: ROUTE_NAME.settings,
+                    query: { scrollTo: SETTINGS_MENU_KEY.proxies },
+                  })
+                }}
+              >
+                {t('moreSettings')}
+              </button>
             </div>
           </DialogWrapper>
         </>
       )
 
-      if (!props.isLargeCtrlsBar) {
-        return (
-          <div class="flex flex-col gap-2 p-2">
-            {hasProviders.value && (
-              <div class="flex gap-2">
-                {tabs}
-                {upgradeAllIcon}
-              </div>
-            )}
-            <div class="flex w-full gap-2">
-              {modeSelect}
-              {searchInput}
-              {settingsModal}
-              {toggleCollapseAll}
-              {latencyTestAll}
+      const content = !isLargeCtrlsBar.value ? (
+        <div class="flex flex-col gap-2 p-2">
+          {hasProviders.value && (
+            <div class="flex gap-2">
+              {tabs}
+              {upgradeAllIcon}
             </div>
+          )}
+          <div class="flex w-full gap-2">
+            {modeSelect}
+            {searchInput}
+            {settingsModal}
+            {toggleCollapseAll}
+            {latencyTestAll}
           </div>
-        )
-      }
-      return (
+        </div>
+      ) : (
         <div class="flex gap-2 p-2">
           {hasProviders.value && tabs}
           {modeSelect}
@@ -330,6 +357,8 @@ export default defineComponent({
           {latencyTestAll}
         </div>
       )
+
+      return <div class="ctrls-bar">{content}</div>
     }
   },
 })

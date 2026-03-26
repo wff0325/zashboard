@@ -1,17 +1,23 @@
 @import 'tailwindcss';
 
 @config '../../tailwind.config.ts';
-@plugin "daisyui" {
+@plugin 'daisyui' {
   themes: all;
   exclude: rootscrollgutter;
 }
 
 @theme {
-  --font-MiSans: 'MiSans-VF', 'NotoEmoji', system-ui;
-  --font-SarasaUI: 'SarasaUiSC-Regular', 'NotoEmoji', system-ui;
-  --font-PingFang: 'PingFangSC-Regular', 'NotoEmoji', system-ui;
-  --font-FiraSans: 'Fira Sans', 'NotoEmoji', system-ui;
-  --font-SystemUI: 'NotoEmoji', system-ui;
+  --font-MiSans-NotoEmoji: 'MiSans-VF', 'NotoEmoji', system-ui;
+  --font-SarasaUI-NotoEmoji: 'SarasaUiSC-Regular', 'NotoEmoji', system-ui;
+  --font-PingFang-NotoEmoji: 'PingFangSC-Regular', 'NotoEmoji', system-ui;
+  --font-FiraSans-NotoEmoji: 'Fira Sans', 'NotoEmoji', system-ui;
+  --font-SystemUI-NotoEmoji: 'NotoEmoji', system-ui;
+
+  --font-MiSans-Twemoji: 'MiSans-VF', 'Twemoji', system-ui;
+  --font-SarasaUI-Twemoji: 'SarasaUiSC-Regular', 'Twemoji', system-ui;
+  --font-PingFang-Twemoji: 'PingFangSC-Regular', 'Twemoji', system-ui;
+  --font-FiraSans-Twemoji: 'Fira Sans', 'Twemoji', system-ui;
+  --font-SystemUI-Twemoji: 'Twemoji', system-ui;
 }
 
 @layer utilities {
@@ -21,6 +27,12 @@
   }
 }
 
+@layer utilities {
+  @font-face {
+    font-family: 'Twemoji';
+    src: url('./TwemojiMozilla-flags.woff2') format('woff2');
+  }
+}
 @utility card {
   @apply bg-base-100 rounded-lg shadow-md;
   .card-body {
@@ -34,6 +46,10 @@
 
 .collapse.transparent-collapse {
   @apply bg-transparent! shadow-none! backdrop-blur-none!;
+}
+
+@utility badge {
+  @apply bg-base-200/80;
 }
 
 @utility select {
@@ -67,7 +83,7 @@
 }
 
 @utility modal {
-  @apply max-md:bg-transparent!;
+  @apply max-md:bg-transparent! max-md:backdrop-blur-sm max-md:transition-[backdrop-filter];
 }
 
 .select.select-sm,
@@ -86,13 +102,19 @@
     .input,
     .select,
     .toggle,
+    .settings-menu,
+    .ctrls-bar,
     .tabs {
       @apply bg-base-100/$(i);
     }
 
+    .badge {
+      @apply bg-base-200/$(i) border-base-200/$(i);
+    }
+
     option,
     optgroup {
-      @apply bg-base-100;
+      @apply backdrop-blur-sm;
     }
 
     .bg-base-200,
@@ -136,9 +158,9 @@
     .card,
     .collapse,
     .sidebar,
-    .ctrls-bar,
     .nav-bar,
     .modal-box,
+    .need-blur,
     .table thead {
       /* prettier-ignore */
       backdrop-filter: blur($(i)px);
@@ -162,7 +184,7 @@
 }
 
 .tippy-box {
-  @apply bg-neutral text-neutral-content z-[9999] shadow-md;
+  @apply bg-neutral text-neutral-content z-[9999] whitespace-pre-line shadow-md;
 }
 .tippy-box[data-placement^='top'] > .tippy-arrow:before {
   @apply border-t-neutral;
@@ -292,5 +314,79 @@ div {
 @media screen and (min-width: 1024px) {
   .bounce-in {
     animation: bounceInForPC 0.4s ease-out;
+  }
+}
+
+@keyframes highlightFlash {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-primary) 100%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-primary) 30%, transparent);
+  }
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-primary) 0%, transparent);
+  }
+}
+
+.highlight-flash {
+  animation: highlightFlash 0.6s ease-out 2;
+}
+
+@keyframes progressBar {
+  from {
+    width: 100%;
+  }
+  to {
+    width: 0%;
+  }
+}
+
+.dock-shadow {
+  background: linear-gradient(
+    to top,
+    rgba(0, 0, 0, 0.3),
+    rgba(0, 0, 0, 0.16),
+    rgba(0, 0, 0, 0.08),
+    rgba(0, 0, 0, 0.02),
+    rgba(0, 0, 0, 0)
+  );
+  width: 100%;
+  height: env(safe-area-inset-bottom);
+  position: fixed;
+  bottom: 0;
+  z-index: 10;
+}
+.ctrls-bar {
+  @media screen and (max-width: 768px) {
+    background: linear-gradient(
+      to bottom,
+      var(--color-base-100),
+      color-mix(in srgb, var(--color-base-100) 10%, transparent)
+    );
+  }
+  @apply md:bg-base-100/20 fixed top-0 right-0 left-0 z-30 shadow-sm backdrop-blur-lg md:sticky;
+}
+
+.dock {
+  @apply absolute right-2 left-2 z-30 rounded-3xl;
+}
+
+.settings-title {
+  @apply flex items-center gap-2 py-2 text-lg font-bold;
+}
+.settings-grid {
+  @apply grid max-w-7xl grid-cols-1 gap-x-4 gap-y-1 lg:grid-cols-2 lg:gap-x-8 xl:gap-x-12 2xl:gap-x-16;
+}
+.sidebar-collapsed .settings-grid {
+  @apply md:grid-cols-2;
+}
+.setting-item {
+  @apply border-base-300/40 flex h-10 items-center gap-2 border-b;
+  .setting-item-label {
+    @apply flex-1 text-sm font-medium;
+    svg {
+      @apply inline-block;
+    }
   }
 }

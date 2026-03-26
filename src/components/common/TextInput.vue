@@ -7,6 +7,7 @@
     />
     <input
       v-model="inputValue"
+      ref="inputRef"
       type="text"
       :class="['input input-sm join-item w-full', { 'pr-6': clearable }]"
       :placeholder="placeholder || ''"
@@ -27,7 +28,7 @@
 <script lang="ts" setup>
 import { useTooltip } from '@/helper/tooltip'
 import { XMarkIcon } from '@heroicons/vue/24/outline'
-import { createApp, defineComponent, h } from 'vue'
+import { createApp, defineComponent, h, ref } from 'vue'
 
 const emits = defineEmits<{
   (e: 'input', value: string): void
@@ -51,7 +52,7 @@ const clearInput = () => {
 }
 
 const { showTip, hideTip } = useTooltip()
-
+const inputRef = ref<HTMLInputElement>()
 const handlerSearchInputClick = (e: Event) => {
   if (!props.menus?.length) {
     return
@@ -71,38 +72,51 @@ const handlerSearchInputClick = (e: Event) => {
       return () =>
         h(
           'div',
-          { class: 'max-h-64 overflow-y-auto overflow-x-hidden scrollbar-hidden min-w-24' },
+          { class: 'max-h-64 overflow-y-auto overflow-x-hidden scrollbar-hidden min-w-24 py-1' },
           props.menus.map((item) =>
-            h('div', { class: 'cursor-pointer p-1 flex gap-2 items-center' }, [
-              h(
-                'span',
-                {
-                  class: 'flex-1 transition-transform hover:scale-105 hover:text-primary',
-                  onClick: () => {
-                    inputValue.value = item
-                    hideTip()
+            h(
+              'div',
+              {
+                class:
+                  'cursor-pointer rounded-sm p-1 px-3 flex gap-2 items-center overflow-hidden hover:bg-base-300',
+              },
+              [
+                h(
+                  'span',
+                  {
+                    class: 'flex-1 truncate',
+                    onClick: () => {
+                      inputValue.value = item
+                      hideTip()
+                      inputRef.value?.focus()
+                    },
                   },
-                },
-                item,
-              ),
-              props.menusDeleteable &&
-                h(XMarkIcon, {
-                  class: 'h-3 w-3 transition-transform hover:scale-125',
-                  onClick: () => {
-                    emits(
-                      'update:menus',
-                      props.menus.filter((menu) => menu !== item),
-                    )
-                    hideTip()
-                  },
-                }),
-            ]),
+                  item,
+                ),
+                props.menusDeleteable &&
+                  h(XMarkIcon, {
+                    class: 'h-3 w-3 transition-transform hover:scale-125',
+                    onClick: (e) => {
+                      const target = e.target as HTMLElement
+
+                      emits(
+                        'update:menus',
+                        props.menus.filter((menu) => menu !== item),
+                      )
+                      target.closest('div')?.remove()
+                    },
+                  }),
+              ],
+            ),
           ),
         )
     },
   })
   const mountEl = document.createElement('div')
-  const app = createApp(PopContent, { menus: props.menus, menusDeleteable: props.menusDeleteable })
+  const app = createApp(PopContent, {
+    menus: props.menus,
+    menusDeleteable: props.menusDeleteable,
+  })
 
   app.mount(mountEl)
 

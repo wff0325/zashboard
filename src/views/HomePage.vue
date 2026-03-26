@@ -1,66 +1,61 @@
 <template>
-  <div class="bg-base-200/50 home-page flex size-full">
+  <div
+    class="bg-base-200/50 home-page flex size-full"
+    :class="isSidebarCollapsed ? 'sidebar-collapsed' : 'sidebar-expanded'"
+  >
     <SideBar v-if="!isMiddleScreen" />
     <RouterView v-slot="{ Component, route }">
       <div
-        class="flex flex-1 flex-col overflow-hidden"
+        class="relative flex-1 overflow-hidden"
         ref="swiperRef"
       >
-        <div
-          v-if="ctrlsMap[route.name as string]"
-          class="bg-base-100 ctrls-bar w-full"
-          ref="ctrlsBarRef"
-        >
-          <component
-            :is="ctrlsMap[route.name as string]"
-            :is-large-ctrls-bar="isLargeCtrlsBar"
+        <div class="absolute flex h-full w-full flex-col overflow-y-auto">
+          <Transition
+            :name="(route.meta.transition as string) || 'fade'"
+            v-if="isMiddleScreen"
+          >
+            <Component :is="Component" />
+          </Transition>
+          <Component
+            v-else
+            :is="Component"
           />
         </div>
 
-        <div class="relative h-0 flex-1">
-          <div class="absolute flex h-full w-full flex-col overflow-y-auto">
-            <Transition
-              :name="(route.meta.transition as string) || 'fade'"
-              v-if="isMiddleScreen"
-            >
-              <Component :is="Component" />
-            </Transition>
-            <Component
-              v-else
-              :is="Component"
-            />
-          </div>
-        </div>
         <template v-if="isMiddleScreen">
           <div
-            class="nav-bar shrink-0"
-            :style="styleForSafeArea"
-          />
-          <div
-            class="dock dock-sm bg-base-200 z-30"
-            :style="styleForSafeArea"
+            class="bg-base-100/20 dock dock-xs z-10 h-14 w-auto shadow-sm backdrop-blur-sm"
+            :style="{
+              padding: '0',
+              bottom: 'calc(var(--spacing) * 2 + env(safe-area-inset-bottom))',
+            }"
+            ref="dockRef"
           >
             <button
               v-for="r in renderRoutes"
               :key="r"
-              @click="router.push({ name: r })"
+              @click="router.push({ name: r, replace: true })"
+              class="h-14 flex-col items-center justify-center pt-2"
               :class="r === route.name && 'dock-active'"
             >
               <component
                 :is="ROUTE_ICON_MAP[r]"
-                class="size-5"
+                class="h-5 w-5 flex-shrink-0"
               />
               <span class="dock-label">
                 {{ $t(r) }}
               </span>
             </button>
           </div>
+          <div class="dock-shadow"></div>
         </template>
       </div>
     </RouterView>
 
     <DialogWrapper v-model="autoSwitchBackendDialog">
-      <h3 class="text-lg font-bold">{{ $t('currentBackendUnavailable') }}</h3>
+      <div class="mb-2">
+        {{ $t('currentBackendUnavailable') }}
+      </div>
       <div class="flex justify-end gap-2">
         <button
           class="btn btn-sm"
@@ -82,16 +77,13 @@
 <script setup lang="ts">
 import { isBackendAvailable } from '@/api'
 import DialogWrapper from '@/components/common/DialogWrapper.vue'
-import ConnectionCtrl from '@/components/sidebar/ConnectionCtrl.tsx'
-import LogsCtrl from '@/components/sidebar/LogsCtrl.tsx'
-import ProxiesCtrl from '@/components/sidebar/ProxiesCtrl.tsx'
-import RulesCtrl from '@/components/sidebar/RulesCtrl.tsx'
 import SideBar from '@/components/sidebar/SideBar.vue'
-import { useNotification } from '@/composables/notification'
+import { dockTop } from '@/composables/paddingViews'
 import { useSettings } from '@/composables/settings'
 import { useSwipeRouter } from '@/composables/swipe'
-import { PROXY_TAB_TYPE, ROUTE_ICON_MAP, ROUTE_NAME, RULE_TAB_TYPE } from '@/constant'
+import { PROXY_TAB_TYPE, ROUTE_ICON_MAP, RULE_TAB_TYPE } from '@/constant'
 import { renderRoutes } from '@/helper'
+import { showNotification } from '@/helper/notification'
 import { getLabelFromBackend, isMiddleScreen } from '@/helper/utils'
 import { fetchConfigs } from '@/store/config'
 import { initConnections } from '@/store/connections'
@@ -99,32 +91,26 @@ import { initLogs } from '@/store/logs'
 import { initSatistic } from '@/store/overview'
 import { fetchProxies, proxiesTabShow } from '@/store/proxies'
 import { fetchRules, rulesTabShow } from '@/store/rules'
+import { isSidebarCollapsed } from '@/store/settings'
 import { activeBackend, activeUuid, backendList } from '@/store/setup'
 import type { Backend } from '@/types'
-import { useDocumentVisibility, useElementSize } from '@vueuse/core'
-import { computed, ref, watch, type Component } from 'vue'
+import { useDocumentVisibility, useElementBounding } from '@vueuse/core'
+import { ref, watch } from 'vue'
 import { RouterView, useRouter } from 'vue-router'
-
-const ctrlsMap: Record<string, Component> = {
-  [ROUTE_NAME.connections]: ConnectionCtrl,
-  [ROUTE_NAME.logs]: LogsCtrl,
-  [ROUTE_NAME.proxies]: ProxiesCtrl,
-  [ROUTE_NAME.rules]: RulesCtrl,
-}
-
-const styleForSafeArea = {
-  height: 'calc(var(--spacing) * 14 + env(safe-area-inset-bottom))',
-  'padding-bottom': 'env(safe-area-inset-bottom)',
-}
 
 const router = useRouter()
 const { swiperRef } = useSwipeRouter()
 
-const ctrlsBarRef = ref<HTMLDivElement>()
-const { width: ctrlsBarWidth } = useElementSize(ctrlsBarRef)
-const isLargeCtrlsBar = computed(() => {
-  return ctrlsBarWidth.value > 720
-})
+const dockRef = ref<HTMLDivElement>()
+const { top: dockRefTop } = useElementBounding(dockRef)
+
+watch(
+  dockRefTop,
+  () => {
+    dockTop.value = window.innerHeight - dockRefTop.value
+  },
+  { immediate: true },
+)
 
 watch(
   activeUuid,
@@ -145,7 +131,7 @@ watch(
 )
 
 const autoSwitchBackendDialog = ref(false)
-const { showNotification } = useNotification()
+
 const autoSwitchBackend = async () => {
   const otherEnds = backendList.value.filter((end) => end.uuid !== activeUuid.value)
 
